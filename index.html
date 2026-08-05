@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Météo Bivouac - Astro & Rosée</title>
+    <title>Météo Bivouac - Synthèse 10 Jours & Rosée</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 700px; margin: auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 720px; margin: auto; }
         h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
@@ -19,14 +19,20 @@
         th, td { padding: 6px 2px; text-align: center; border-bottom: 1px solid #334155; word-wrap: break-word; }
         th { color: #94a3b8; font-size: 0.7rem; }
         
-        /* Répartition des largeurs de colonnes */
-        th:nth-child(1), td:nth-child(1) { width: 15%; } /* Heure */
-        th:nth-child(2), td:nth-child(2) { width: 12%; } /* T° */
-        th:nth-child(3), td:nth-child(3) { width: 12%; } /* Rosée */
-        th:nth-child(4), td:nth-child(4) { width: 12%; } /* Écart */
-        th:nth-child(5), td:nth-child(5) { width: 18%; } /* Ciel */
-        th:nth-child(6), td:nth-child(6) { width: 18%; } /* Vent & Dir */
-        th:nth-child(7), td:nth-child(7) { width: 13%; } /* Risq */
+        /* Tableaux de synthèse 10 jours */
+        .synth-table { font-size: 0.75rem; margin-top: 5px; }
+        .synth-table th { background: #334155; color: #f8fafc; padding: 6px 4px; }
+        .synth-table td { padding: 6px 4px; cursor: pointer; }
+        .synth-table tr:hover { background: #334155; }
+        .selected-row { background: #1e3a8a !important; font-weight: bold; }
+
+        th:nth-child(1), td:nth-child(1) { width: 15%; }
+        th:nth-child(2), td:nth-child(2) { width: 12%; }
+        th:nth-child(3), td:nth-child(3) { width: 12%; }
+        th:nth-child(4), td:nth-child(4) { width: 12%; }
+        th:nth-child(5), td:nth-child(5) { width: 18%; }
+        th:nth-child(6), td:nth-child(6) { width: 18%; }
+        th:nth-child(7), td:nth-child(7) { width: 13%; }
         
         .badge-vert { color: #4ade80; font-weight: bold; }
         .badge-orange { color: #fbbf24; font-weight: bold; }
@@ -46,7 +52,7 @@
 </head>
 <body>
 
-    <h1>⛺ Météo Bivouac, Ciel & Astro</h1>
+    <h1>⛺ Météo Bivouac - Synthèse & Rosée</h1>
     
     <div class="card">
         <strong>1. Choisissez votre spot sur la carte :</strong>
@@ -56,9 +62,18 @@
         </div>
     </div>
 
+    <!-- Synthèse globale sur 10 jours -->
+    <div class="card">
+        <h3 style="margin: 0 0 5px 0; font-size: 1.0rem;">🔭 Synthèse des 10 Prochaines Nuits</h3>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 8px;">Cliquez sur une ligne pour l'analyser en détail ci-dessous.</div>
+        <div id="synthese- container" style="overflow-x: auto;">
+            Chargement de la synthèse...
+        </div>
+    </div>
+
     <div class="card">
         <div class="controls">
-            <label for="date-selection"><strong>2. Date :</strong></label>
+            <label for="date-selection"><strong>2. Date ciblée :</strong></label>
             <input type="date" id="date-selection" onchange="chargerMeteo()">
         </div>
         
@@ -67,7 +82,6 @@
             <span>Modèle : Open-Meteo (Best Match)</span>
         </div>
 
-        <!-- Encadré Astronomique (Soleil, Lune, Phases) -->
         <div class="astro-card" id="astro-container">
             <div class="astro-item"><span>☀️ Lever</span><strong id="sunrise">--:--</strong></div>
             <div class="astro-item"><span>☀️ Coucher</span><strong id="sunset">--:--</strong></div>
@@ -76,7 +90,7 @@
             <div class="astro-item"><span>Phase Lune</span><strong id="moonphase" style="font-size:1.2rem;">--</strong></div>
         </div>
 
-        <h3 style="margin: 10px 0; font-size: 1.1rem;">Prévisions Nuit (18h - 08h)</h3>
+        <h3 style="margin: 10px 0; font-size: 1.1rem;">Détail Horaire de la Nuit (18h - 08h)</h3>
         <div id="resultats">Chargement des données...</div>
     </div>
 
@@ -136,7 +150,6 @@ function getCielIcon(pourcentage) {
     return `<span class="cloud-icon ciel-couvert">☁️</span> ${pourcentage}%`;
 }
 
-// Convertir les degrés du vent en points cardinaux (ex: 0 = N, 90 = E...)
 function getWindDirectionText(degrees) {
     if (degrees === undefined || degrees === null) return "";
     const directions = ['N', 'N-NE', 'NE', 'E-NE', 'E', 'E-SE', 'SE', 'S-SE', 'S', 'S-SW', 'SW', 'W-SW', 'W', 'W-NW', 'NW', 'N-NW'];
@@ -144,9 +157,7 @@ function getWindDirectionText(degrees) {
     return directions[index % 16];
 }
 
-// Estimer l'icône de la lune selon son âge approximatif ou sa phase
 function getMoonPhaseIcon(fraction) {
-    // fraction va de 0.0 (nouvelle lune) à 0.5 (pleine lune) puis redescend à 1.0
     if (fraction < 0.03 || fraction > 0.97) return "🌑 Nouvelle";
     if (fraction < 0.22) return "🌒 1er Croissant";
     if (fraction < 0.28) return "🌓 1er Quartier";
@@ -157,42 +168,116 @@ function getMoonPhaseIcon(fraction) {
     return "🌘 Dernier Croissant";
 }
 
+function selectionnerDate(dateStr) {
+    document.getElementById("date-selection").value = dateStr;
+    chargerMeteo();
+}
+
 async function chargerMeteo() {
     const selectedDate = document.getElementById("date-selection").value;
     if (!selectedDate) return;
 
+    // Charger assez de jours pour couvrir la sélection et l'affichage des 10 jours de synthèse
+    // On prend la date d'aujourd'hui jusqu'à 10 jours plus loin pour la synthèse globale
     const todayStr = new Date().toISOString().split('T')[0];
-    const diffTime = new Date(selectedDate) - new Date(todayStr);
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+    let startDateObj = new Date(todayStr);
+    let endDateSynthObj = new Date(todayStr);
+    endDateSynthObj.setDate(endDateSynthObj.getDate() + 9); // 10 jours au total
+    const startDateStr = startDateObj.toISOString().split('T')[0];
+    const endDateSynthStr = endDateSynthObj.toISOString().split('T')[0];
 
-    let horizonText = diffDays === 0 ? "Aujourd'hui" : `J+${diffDays}`;
-    if (diffDays < 0) horizonText = "Passé / Archivé";
-
-    document.getElementById("meta-container").innerHTML = `
-        <span>Horizon : <strong>${horizonText}</strong></span>
-        <span>Modèle : <strong>ECMWF / ICON (Best Match)</strong></span>
-    `;
-
-    let nextDateObj = new Date(selectedDate);
-    nextDateObj.setDate(nextDateObj.getDate() + 1);
-    const endDate = nextDateObj.toISOString().split('T')[0];
-
-    // On ajoute sunrise, sunset, moonrise, moonset, moon_phase dans les paramètres daily
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m,cloud_cover,wind_speed_10m,wind_direction_10m&daily=sunrise,sunset,moonrise,moonset,moon_phase&start_date=${selectedDate}&end_date=${endDate}&models=best_match&timezone=Europe%2FParis`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m,cloud_cover,wind_speed_10m,wind_direction_10m&daily=sunrise,sunset,moonrise,moonset,moon_phase&start_date=${startDateStr}&end_date=${endDateSynthStr}&models=best_match&timezone=Europe%2FParis`;
     
     document.getElementById("resultats").innerHTML = "Chargement...";
+    document.getElementById("synthese- container").innerHTML = "Calcul de la synthèse...";
 
     try {
         const response = await fetch(url);
         const data = await response.json();
         
-        // --- Traitement Données Astro (Jour J) ---
-        if (data.daily && data.daily.sunrise && data.daily.sunrise.length > 0) {
-            let sunriseTime = data.daily.sunrise[0].split("T")[1] || "--:--";
-            let sunsetTime = data.daily.sunset[0].split("T")[1] || "--:--";
-            let moonriseTime = data.daily.moonrise && data.daily.moonrise[0] ? data.daily.moonrise[0].split("T")[1] : "N/A";
-            let moonsetTime = data.daily.moonset && data.daily.moonset[0] ? data.daily.moonset[0].split("T")[1] : "N/A";
-            let moonPhaseVal = data.daily.moon_phase && data.daily.moon_phase[0] !== undefined ? data.daily.moon_phase[0] : 0.5;
+        // --- 1. Construction du Tableau de Synthèse 10 Jours ---
+        let synthHtml = `<table class="synth-table"><tr><th>Date</th><th>Ciel Nuit</th><th>Risque Rosée Max</th><th>Vent Max</th></tr>`;
+        
+        // Pour chaque jour de la plage de synthèse
+        for (let d = 0; d < 10; d++) {
+            let dObj = new Date(startDateObj);
+            dObj.setDate(dObj.getDate() + d);
+            let dStr = dObj.toISOString().split('T')[0];
+            let nextDObj = new Date(dObj);
+            nextDObj.setDate(nextDObj.getDate() + 1);
+            let nextDStr = nextDObj.toISOString().split('T')[0];
+
+            // Analyser la tranche nocturne de ce jour-là (18h J au 8h J+1)
+            let maxClouds = 0;
+            let maxWind = 0;
+            let maxRoséeRisque = "Faible"; // Vert, Orange, Rouge
+            let hasRed = false;
+            let hasOrange = false;
+            
+            let cloudSum = 0;
+            let cloudCount = 0;
+
+            for (let i = 0; i < data.hourly.time.length; i++) {
+                let timeFull = data.hourly.time[i];
+                let [datePart, timePart] = timeFull.split("T");
+                let hourNum = parseInt(timePart.split(":")[0], 10);
+
+                let isNight = (datePart === dStr && hourNum >= 18) || (datePart === nextDStr && hourNum <= 8);
+                if (isNight) {
+                    let temp = data.hourly.temperature_2m[i];
+                    let dew = data.hourly.dew_point_2m[i];
+                    let wind = data.hourly.wind_speed_10m[i];
+                    let clouds = data.hourly.cloud_cover[i];
+                    let ecart = temp - dew;
+
+                    cloudSum += clouds;
+                    cloudCount++;
+                    if (wind > maxWind) maxWind = wind;
+
+                    // Évaluation risque rosée sur l'heure
+                    let currentRisk = "Faible";
+                    if (ecart <= 5 && ecart > 3) {
+                        if (wind < 12 && clouds < 30) currentRisk = "Modéré";
+                    } else if (ecart <= 3) {
+                        if (wind < 12 && clouds < 30) currentRisk = "Élevé";
+                        else currentRisk = "Modéré";
+                    }
+
+                    if (currentRisk === "Élevé") hasRed = true;
+                    if (currentRisk === "Modéré") hasOrange = true;
+                }
+            }
+
+            let avgCloud = cloudCount > 0 ? Math.round(cloudSum / cloudCount) : 0;
+            let cielSynth = avgCloud <= 20 ? "🌟 Clair" : (avgCloud <= 60 ? "🌤️ Partiel" : "☁️ Couvert");
+            
+            let roséeBadge = '<span class="badge-vert">Faible 🟢</span>';
+            if (hasRed) roséeBadge = '<span class="badge-rouge">ÉLEVÉ 🔴</span>';
+            else if (hasOrange) roséeBadge = '<span class="badge-orange">Modéré 🟠</span>';
+
+            let rowClass = (dStr === selectedDate) ? "selected-row" : "";
+            let formattedDate = dObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'numeric' });
+
+            synthHtml += `<tr class="${rowClass}" onclick="selectionnerDate('${dStr}')">
+                <td>${formattedDate}</td>
+                <td>${cielSynth} (${avgCloud}%)</td>
+                <td>${roséeBadge}</td>
+                <td>${Math.round(maxWind)} km/h</td>
+            </tr>`;
+        }
+        synthHtml += `</table>`;
+        document.getElementById("synthese- container").innerHTML = synthHtml;
+
+        // --- 2. Données Astro pour la date ciblée ---
+        // Trouver l'index du jour ciblé dans le tableau daily
+        let dayIndex = data.daily.time.findIndex(t => t === selectedDate);
+        if (dayIndex !== -1) {
+            let sunriseTime = data.daily.sunrise[dayIndex] ? data.daily.sunrise[dayIndex].split("T")[1] : "--:--";
+            let sunsetTime = data.daily.sunset[dayIndex] ? data.daily.sunset[dayIndex].split("T")[1] : "--:--";
+            let moonriseTime = data.daily.moonrise && data.daily.moonrise[dayIndex] ? data.daily.moonrise[dayIndex].split("T")[1] : "N/A";
+            let moonsetTime = data.daily.moonset && data.daily.moonset[dayIndex] ? data.daily.moonset[dayIndex].split("T")[1] : "N/A";
+            let moonPhaseVal = data.daily.moon_phase && data.daily.moon_phase[dayIndex] !== undefined ? data.daily.moon_phase[dayIndex] : 0.5;
 
             document.getElementById("sunrise").innerText = sunriseTime;
             document.getElementById("sunset").innerText = sunsetTime;
@@ -201,7 +286,22 @@ async function chargerMeteo() {
             document.getElementById("moonphase").innerText = getMoonPhaseIcon(moonPhaseVal);
         }
 
-        // --- Traitement Tableau Horaire Nuit ---
+        // --- 3. Horizon et Meta ---
+        const diffTime = new Date(selectedDate) - new Date(todayStr);
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        let horizonText = diffDays === 0 ? "Aujourd'hui" : `J+${diffDays}`;
+        if (diffDays < 0) horizonText = "Passé / Archivé";
+
+        document.getElementById("meta-container").innerHTML = `
+            <span>Horizon : <strong>${horizonText}</strong></span>
+            <span>Modèle : <strong>ECMWF / ICON (Best Match)</strong></span>
+        `;
+
+        // --- 4. Tableau Horaire de la Nuit Ciblée ---
+        let nextDateObj = new Date(selectedDate);
+        nextDateObj.setDate(nextDateObj.getDate() + 1);
+        let endDateStr = nextDateObj.toISOString().split('T')[0];
+
         let html = `<table><tr><th>Hre</th><th>T°</th><th>Rosée</th><th>Écart</th><th>Ciel</th><th>Vent</th><th>Risq</th></tr>`;
         let lignesAffichees = 0;
 
@@ -210,7 +310,7 @@ async function chargerMeteo() {
             let [datePart, timePart] = timeFull.split("T");
             let hourNum = parseInt(timePart.split(":")[0], 10);
 
-            let isNightTime = (datePart === selectedDate && hourNum >= 18) || (datePart === endDate && hourNum <= 8);
+            let isNightTime = (datePart === selectedDate && hourNum >= 18) || (datePart === endDateStr && hourNum <= 8);
 
             if (isNightTime) {
                 let temp = data.hourly.temperature_2m[i];
@@ -262,6 +362,7 @@ async function chargerMeteo() {
         document.getElementById("resultats").innerHTML = html;
     } catch (error) {
         document.getElementById("resultats").innerHTML = "Erreur lors du chargement météo.";
+        console.error(error);
     }
 }
 </script>
