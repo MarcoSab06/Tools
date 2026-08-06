@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Météo Bivouac - Synthèse & Rosée</title>
+    <title>Météo Bivouac - Ciel & Rosée</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
@@ -16,7 +16,7 @@
         #map { height: 200px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; table-layout: fixed; }
-        th, td { padding: 6px 2px; text-align: center; border-bottom: 1px solid #334155; word-wrap: break-word; }
+        th, td { padding: 6px 2px; text-align: center; border-bottom: 1px solid #334155; word-wrap: break-word; overflow: hidden; }
         th { color: #94a3b8; font-size: 0.7rem; }
         
         /* Tableaux de synthèse 10 jours */
@@ -26,11 +26,20 @@
         .synth-table tr:hover { background: #334155; }
         .selected-row { background: #1e3a8a !important; font-weight: bold; }
 
-        th:nth-child(1), td:nth-child(1) { width: 22%; } /* Date + Étoile */
-        th:nth-child(2), td:nth-child(2) { width: 15%; } /* Min T° */
-        th:nth-child(3), td:nth-child(3) { width: 22%; } /* Ciel */
-        th:nth-child(4), td:nth-child(4) { width: 23%; } /* Rosée */
-        th:nth-child(5), td:nth-child(5) { width: 18%; } /* Vent */
+        .synth-table th:nth-child(1), .synth-table td:nth-child(1) { width: 22%; }
+        .synth-table th:nth-child(2), .synth-table td:nth-child(2) { width: 15%; }
+        .synth-table th:nth-child(3), .synth-table td:nth-child(3) { width: 22%; }
+        .synth-table th:nth-child(4), .synth-table td:nth-child(4) { width: 23%; }
+        .synth-table th:nth-child(5), .synth-table td:nth-child(5) { width: 18%; }
+
+        /* Correction des largeurs pour le tableau de détail horaire (7 colonnes : Hre, T°, Rosée, Écart, Ciel, Vent, Risq) */
+        #resultats th:nth-child(1), #resultats td:nth-child(1) { width: 12%; } /* Hre */
+        #resultats th:nth-child(2), #resultats td:nth-child(2) { width: 13%; } /* T° */
+        #resultats th:nth-child(3), #resultats td:nth-child(3) { width: 13%; } /* Rosée */
+        #resultats th:nth-child(4), #resultats td:nth-child(4) { width: 13%; } /* Écart */
+        #resultats th:nth-child(5), #resultats td:nth-child(5) { width: 20%; } /* Ciel */
+        #resultats th:nth-child(6), #resultats td:nth-child(6) { width: 18%; } /* Vent */
+        #resultats th:nth-child(7), #resultats td:nth-child(7) { width: 11%; } /* Risq */
         
         .badge-vert { color: #4ade80; font-weight: bold; }
         .badge-orange { color: #fbbf24; font-weight: bold; }
@@ -137,7 +146,7 @@ async function recupererAltitudeEtMeteo() {
     } catch (e) {
         console.log("Erreur récupération altitude");
     }
-    document.getElementById("spot-text").innerText = `Lat/Lon : ${currentLat.toFixed(4)}, ${currentLat.toFixed(4)} | Alt : ${currentElevation}m`;
+    document.getElementById("spot-text").innerText = `Lat/Lon : ${currentLat.toFixed(4)}, ${currentLon.toFixed(4)} | Alt : ${currentElevation}m`;
     chargerMeteo();
 }
 
@@ -248,7 +257,6 @@ async function chargerMeteo() {
             if (hasRed) roséeBadge = '<span class="badge-rouge">ÉLEVÉ 🔴</span>';
             else if (hasOrange) roséeBadge = '<span class="badge-orange">Modéré 🟠</span>';
 
-            // Critère d'option idéale (Étoile devant) : Ciel très clair (<= 20% nuages), rosée Faible, et vent modéré (< 20 km/h)
             let isBestOption = (avgCloud <= 20 && !hasRed && !hasOrange && maxWind < 20);
             let starPrefix = isBestOption ? "🌟 " : "";
 
@@ -332,16 +340,16 @@ async function chargerMeteo() {
                 }
                 
                 let displayHour = timePart.substring(0, 2) + 'h';
-                let windDisplay = `${windSpeed} km/h<br><span style="color:#94a3b8; font-size:0.75rem;">${windDirText}</span>`;
+                let windDisplay = `${windSpeed} km/h<br><span style="color:#94a3b8; font-size:0.7rem;">${windDirText}</span>`;
 
                 html += `<tr>
                     <td>${displayHour}</td>
                     <td>${temp}°</td>
                     <td>${dew}°</td>
                     <td>${ecart}°</td>
-                    <td style="font-size: 0.8rem;">${getCielIcon(clouds)}</td>
-                    <td style="font-size: 0.75rem; line-height: 1.1;">${windDisplay}</td>
-                    <td style="font-size: 0.8rem;">${risqueHtml}</td>
+                    <td style="font-size: 0.75rem;">${getCielIcon(clouds)}</td>
+                    <td style="font-size: 0.7rem; line-height: 1.1;">${windDisplay}</td>
+                    <td style="font-size: 0.75rem;">${risqueHtml}</td>
                 </tr>`;
                 lignesAffichees++;
             }
