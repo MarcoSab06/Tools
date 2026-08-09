@@ -12,7 +12,14 @@
         h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-        input[type="date"] { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 8px 12px; border-radius: 8px; font-size: 1rem; }
+        
+        /* Style des champs de saisie (date et recherche lieu) */
+        input[type="date"], input[type="text"] { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 8px 12px; border-radius: 8px; font-size: 1rem; }
+        .search-box { display: flex; gap: 8px; margin-bottom: 10px; }
+        .search-box input { flex: 1; }
+        .search-box button { background: #38bdf8; color: #0f172a; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .search-box button:hover { background: #0ea5e9; }
+
         #map { height: 200px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; table-layout: fixed; }
@@ -32,14 +39,14 @@
         .synth-table th:nth-child(4), .synth-table td:nth-child(4) { width: 23%; }
         .synth-table th:nth-child(5), .synth-table td:nth-child(5) { width: 18%; }
 
-        /* Correction des largeurs pour le tableau de détail horaire (7 colonnes : Hre, T°, Rosée, Écart, Ciel, Vent, Risq) */
-        #resultats th:nth-child(1), #resultats td:nth-child(1) { width: 12%; } /* Hre */
-        #resultats th:nth-child(2), #resultats td:nth-child(2) { width: 13%; } /* T° */
-        #resultats th:nth-child(3), #resultats td:nth-child(3) { width: 13%; } /* Rosée */
-        #resultats th:nth-child(4), #resultats td:nth-child(4) { width: 13%; } /* Écart */
-        #resultats th:nth-child(5), #resultats td:nth-child(5) { width: 20%; } /* Ciel */
-        #resultats th:nth-child(6), #resultats td:nth-child(6) { width: 18%; } /* Vent */
-        #resultats th:nth-child(7), #resultats td:nth-child(7) { width: 11%; } /* Risq */
+        /* Largeurs fixes pour le tableau de détail horaire */
+        #resultats th:nth-child(1), #resultats td:nth-child(1) { width: 12%; }
+        #resultats th:nth-child(2), #resultats td:nth-child(2) { width: 13%; }
+        #resultats th:nth-child(3), #resultats td:nth-child(3) { width: 13%; }
+        #resultats th:nth-child(4), #resultats td:nth-child(4) { width: 13%; }
+        #resultats th:nth-child(5), #resultats td:nth-child(5) { width: 20%; }
+        #resultats th:nth-child(6), #resultats td:nth-child(6) { width: 18%; }
+        #resultats th:nth-child(7), #resultats td:nth-child(7) { width: 11%; }
         
         .badge-vert { color: #4ade80; font-weight: bold; }
         .badge-orange { color: #fbbf24; font-weight: bold; }
@@ -59,10 +66,15 @@
 </head>
 <body>
 
-    <h1>⛺ Météo Bivouac - Synthèse & Rosée</h1>
+    <h1>⛺ Météo Bivouac - Ciel & Rosée</h1>
     
     <div class="card">
-        <strong>1. Choisissez votre spot sur la carte :</strong>
+        <strong>1. Choisissez votre spot :</strong>
+        <!-- Barre de recherche textuelle -->
+        <div class="search-box" style="margin-top: 8px;">
+            <input type="text" id="search-input" placeholder="Rechercher un lieu, un col, un sommet..." onkeypress="if(event.key === 'Y' || event.key === 'Enter') rechercherLieu()">
+            <button onclick="rechercherLieu()">Chercher</button>
+        </div>
         <div id="map"></div>
         <div class="spot-info" id="spot-text">
             Lat/Lon : 43.7155, 6.9307 | Alt : 1325m
@@ -111,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById("date-selection").value = today;
 
-    map = L.map('map').setView([currentLat, currentLon], 12);
+    map = L.map('map').setView([currentLat, currentLon], 11);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 18,
         attribution: '© OpenStreetMap'
@@ -135,6 +147,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     chargerMeteo();
 });
+
+// Fonction pour rechercher un lieu par texte via l'API Nominatim (OpenStreetMap)
+async function rechercherLieu() {
+    let query = document.getElementById("search-input").value;
+    if (!query) return;
+
+    try {
+        let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        let data = await response.json();
+        if (data && data.length > 0) {
+            currentLat = parseFloat(data[0].lat);
+            currentLon = parseFloat(data[0].lon);
+            
+            map.setView([currentLat, currentLon], 13);
+            marker.setLatLng([currentLat, currentLon]);
+            
+            recupererAltitudeEtMeteo();
+        } else {
+            alert("Lieu introuvable. Essayez un autre nom.");
+        }
+    } catch (e) {
+        console.error("Erreur de recherche de lieu", e);
+    }
+}
 
 async function recupererAltitudeEtMeteo() {
     try {
