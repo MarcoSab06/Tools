@@ -1,938 +1,265 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Bilan Été - Humidex & Ressenti</title>
-
-  <!-- Leaflet pour la carte -->
-  https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
-
-  https://unpkg.com/leaflet@1.9.4/dist/leaflet.js
-  </script>
-
-  <!-- Chart.js pour les graphiques -->
-  https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.jsscript>
-  
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
-      padding: 15px;
-      max-width: 980px;
-      margin: auto;
-    }
-
-    h1 {
-      font-size: 1.5rem;
-      text-align: center;
-      color: #fb923c;
-      margin-bottom: 8px;
-    }
-
-    h2, h3 {
-      margin-top: 0;
-    }
-
-    .subtitle {
-      text-align: center;
-      color: #cbd5e1;
-      font-size: 0.9rem;
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background: #1e293b;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.35);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-    }
-
-    label {
-      display: block;
-      color: #cbd5e1;
-      font-size: 0.85rem;
-      margin-bottom: 5px;
-    }
-
-    input[type="date"],
-    input[type="text"],
-    select {
-      width: 100%;
-      box-sizing: border-box;
-      background: #334155;
-      color: #f8fafc;
-      border: 1px solid #475569;
-      padding: 9px 10px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-    }
-
-    button {
-      background: #fb923c;
-      color: #0f172a;
-      border: none;
-      padding: 9px 14px;
-      border-radius: 8px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #f97316;
-    }
-
-    .search-box {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .search-box input {
-      flex: 1;
-    }
-
-    #map {
-      height: 240px;
-      width: 100%;
-      border-radius: 10px;
-      margin-top: 12px;
-      z-index: 1;
-    }
-
-    .spot-info {
-      font-size: 0.82rem;
-      color: #94a3b8;
-      margin-top: 8px;
-    }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 14px;
-    }
-
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 10px;
-    }
-
-    .kpi {
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      padding: 12px;
-    }
-
-    .kpi span {
-      display: block;
-      color: #94a3b8;
-      font-size: 0.78rem;
-      margin-bottom: 4px;
-    }
-
-    .kpi strong {
-      font-size: 1.25rem;
-      color: #f8fafc;
-    }
-
-    .kpi small {
-      display: block;
-      color: #cbd5e1;
-      margin-top: 3px;
-    }
-
-    .legend {
-      font-size: 0.8rem;
-      color: #cbd5e1;
-      line-height: 1.45;
-    }
-
-    .status {
-      color: #38bdf8;
-      font-size: 0.9rem;
-      margin-top: 8px;
-    }
-
-    .warning {
-      color: #fbbf24;
-    }
-
-    .error {
-      color: #f87171;
-    }
-
-    .chart-container {
-      background: #0f172a;
-      border-radius: 12px;
-      padding: 12px;
-      height: 430px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      font-size: 0.82rem;
-    }
-
-    th, td {
-      padding: 7px 5px;
-      border-bottom: 1px solid #334155;
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    th:first-child, td:first-child {
-      text-align: left;
-    }
-
-    th {
-      color: #94a3b8;
-      font-weight: 600;
-    }
-
-    tr:hover {
-      background: #334155;
-    }
-
-    .table-container {
-      overflow-x: auto;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-
-    .b-green {
-      background: rgba(74, 222, 128, 0.15);
-      color: #4ade80;
-    }
-
-    .b-yellow {
-      background: rgba(250, 204, 21, 0.15);
-      color: #facc15;
-    }
-
-    .b-orange {
-      background: rgba(251, 146, 60, 0.18);
-      color: #fb923c;
-    }
-
-    .b-red {
-      background: rgba(248, 113, 113, 0.18);
-      color: #f87171;
-    }
-
-    .footer-note {
-      font-size: 0.75rem;
-      color: #94a3b8;
-      line-height: 1.45;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilan & Pénibilité Estivale - Humidex</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 800px; margin: auto; }
+        h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        input[type="text"] { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 8px 12px; border-radius: 8px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        .search-box { display: flex; gap: 8px; margin-bottom: 10px; }
+        .search-box button { background: #38bdf8; color: #0f172a; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        #map { height: 180px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; text-align: center; }
+        th, td { padding: 8px 4px; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-size: 0.75rem; background: #334155; }
+        
+        button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; }
+        button.btn-action:hover { background: #0ea5e9; }
+        
+        .spot-info { font-size: 0.8rem; color: #94a3b8; margin-top: 5px; }
+        .back-link { display: inline-block; margin-bottom: 15px; color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
 </head>
-
 <body>
-  <h1>🌡️ Bilan Été - Humidex & Ressenti</h1>
-  <div class="subtitle">
-    Analyse quotidienne du ressenti chaud et humide sur une période donnée, à partir de la température et du point de rosée.
-  </div>
 
-  <div class="card">
-    <h3>1. Choisir le lieu</h3>
-
-    <div class="grid">
-      <div>
-        <label for="preset-location">Lieu prédéfini</label>
-        <select id="preset-location" onchange="selectionnerLieuPreset()">
-          <option value="43.6414,7.0089,Valbonne / Sophia Antipolis">Valbonne / Sophia Antipolis</option>
-          <option value="43.6637,7.1488,Cagnes-sur-Mer">Cagnes-sur-Mer</option>
-          <option value="43.7102,7.2620,Nice">Nice</option>
-          <option value="43.5804,7.1251,Antibes">Antibes</option>
-          <option value="43.5528,7.0174,Cannes">Cannes</option>
-          <option value="43.6584,6.9253,Grasse">Grasse</option>
-          <option value="43.7034,7.2663,Nice Aéroport / Littoral">Nice Aéroport / Littoral</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="search-input">Recherche libre</label>
-        <div class="search-box">
-          <input
-            type="text"
-            id="search-input"
-            placeholder="Ex : Menton, Mandelieu, Vence..."
-            onkeypress="if(event.key === 'Enter') rechercherLieu()"
-          />
-          <button onclick="rechercherLieu()">Chercher</button>
+    <a href="index.html" class="back-link">← Retour au menu des outils</a>
+    <h1>🌡️ Comparateur de Pénibilité Estivale (Humidex)</h1>
+    
+    <div class="card">
+        <strong>1. Localisation de référence (Défaut : Valbonne / Sophia Antipolis) :</strong>
+        <div class="search-box" style="margin-top: 8px;">
+            <input type="text" id="search-input" placeholder="Rechercher (ex: Valbonne, Antibes, Nice)..." value="Valbonne">
+            <button onclick="rechercherLieu()">Chercher</button>
         </div>
-      </div>
+        <div id="map"></div>
+        <div class="spot-info" id="spot-text">
+            Lat/Lon : 43.6412, 7.0084 | Alt : 200m
+        </div>
     </div>
 
-    <div id="map"></div>
-    <div class="spot-info" id="spot-text">
-      Lat/Lon : 43.6414, 7.0089 | Valbonne / Sophia Antipolis
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>2. Choisir la période</h3>
-
-    <div class="grid">
-      <div>
-        <label for="start-date">Date début</label>
-        <input type="date" id="start-date" />
-      </div>
-
-      <div>
-        <label for="end-date">Date fin</label>
-        <input type="date" id="end-date" />
-      </div>
-
-      <div>
-        <label for="quick-period">Période rapide</label>
-        <select id="quick-period" onchange="selectionnerPeriodeRapide()">
-          <option value="">Choisir...</option>
-          <option value="summer-current">Été en cours : 01/06 à aujourd'hui</option>
-          <option value="summer-2026">Été 2026 : juin à août</option>
-          <option value="summer-2025">Été 2025 : juin à août</option>
-          <option value="summer-2024">Été 2024 : juin à août</option>
-          <option value="summer-2023">Été 2023 : juin à août</option>
-          <option value="summer-2022">Été 2022 : juin à août</option>
-        </select>
-      </div>
+    <div class="card">
+        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">2. Lancer le comparatif des étés (2022 - 2026)</h3>
+        <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">
+            Analyse de la période estivale du <strong>1er Juin au 31 Août</strong> pour chaque année. (Note : 2026 s'arrête à la date du jour).
+        </p>
+        <button class="btn-action" onclick="lancerComparaisonEtes()">Calculer le Bilan Climatique 🚀</button>
     </div>
 
-    <div class="actions">
-      <button onclick="chargerDonnees()">Analyser la période</button>
-      <button onclick="telechargerCSV()">Télécharger CSV</button>
+    <div class="card" id="resultats-card" style="display:none;">
+        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Résultats et Indice de Pénibilité (IPE)</h3>
+        <div id="resultats-content" style="overflow-x: auto;">
+            Chargement et calcul des historiques horaires...
+        </div>
     </div>
-
-    <div id="status" class="status"></div>
-  </div>
-
-  <div class="card">
-    <h3>3. Synthèse</h3>
-
-    <div class="summary">
-      <div class="kpi">
-        <span>Humidex maximum</span>
-        <strong id="kpi-humidex-max">--</strong>
-        <small id="kpi-humidex-max-date">--</small>
-      </div>
-
-      <div class="kpi">
-        <span>Jours Humidex ≥ 35</span>
-        <strong id="kpi-days-35">--</strong>
-        <small>inconfort sensible</small>
-      </div>
-
-      <div class="kpi">
-        <span>Jours Humidex ≥ 40</span>
-        <strong id="kpi-days-40">--</strong>
-        <small>fort inconfort</small>
-      </div>
-
-      <div class="kpi">
-        <span>Nuits tropicales</span>
-        <strong id="kpi-tropical-nights">--</strong>
-        <small>température min ≥ 20°C</small>
-      </div>
-
-      <div class="kpi">
-        <span>Jours point de rosée ≥ 22°C</span>
-        <strong id="kpi-dew-22">--</strong>
-        <small>air très lourd</small>
-      </div>
-
-      <div class="kpi">
-        <span>Indice de pénibilité</span>
-        <strong id="kpi-score">--</strong>
-        <small id="kpi-score-label">--</small>
-      </div>
-    </div>
-
-    <p class="legend">
-      Lecture rapide : l’Humidex traduit l’effet combiné de la chaleur et de l’humidité.
-      En pratique, 35 marque déjà une chaleur lourde, 40 devient franchement pénible,
-      et au-delà de 45 on entre dans une zone de chaleur très difficile à supporter.
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>4. Graphique quotidien</h3>
-    <div class="chart-container">
-      <canvas id="chart"></canvas>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>5. Détail quotidien</h3>
-    <div class="table-container" id="table-container">
-      Aucune donnée chargée.
-    </div>
-  </div>
-
-  <div class="footer-note">
-    Données : Open-Meteo Historical API. Calcul Humidex réalisé localement dans le navigateur à partir de la température à 2 m et du point de rosée à 2 m.
-    Cet outil donne un indicateur de ressenti climatique, pas une mesure sanitaire individuelle.
-  </div>
 
 <script>
-let currentLat = 43.6414;
-let currentLon = 7.0089;
-let currentLabel = "Valbonne / Sophia Antipolis";
-
-let map;
-let marker;
-let chart;
-let dailyRows = [];
+// Coordonnées initiales par défaut centrées sur Valbonne / Sophia Antipolis
+let currentLat = 43.6412;
+let currentLon = 7.0084;
+let currentElevation = 200;
+let map, marker;
 
 document.addEventListener("DOMContentLoaded", () => {
-  initialiserDates();
+    map = L.map('map').setView([currentLat, currentLon], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-  map = L.map("map").setView([currentLat, currentLon], 11);
+    marker = L.marker([currentLat, currentLon], {draggable: true}).addTo(map);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 18,
-    attribution: "© OpenStreetMap"
-  }).addTo(map);
+    marker.on('dragend', function(event) {
+        let pos = marker.getLatLng();
+        currentLat = pos.lat;
+        currentLon = pos.lng;
+        recupererAltitude();
+    });
 
-  marker = L.marker([currentLat, currentLon], { draggable: true }).addTo(map);
-
-  marker.on("dragend", function(event) {
-    const position = marker.getLatLng();
-    currentLat = position.lat;
-    currentLon = position.lng;
-    currentLabel = "Position personnalisée";
-    mettreAJourTexteSpot();
-  });
-
-  map.on("click", function(event) {
-    marker.setLatLng(event.latlng);
-    currentLat = event.latlng.lat;
-    currentLon = event.latlng.lng;
-    currentLabel = "Position personnalisée";
-    mettreAJourTexteSpot();
-  });
-
-  mettreAJourTexteSpot();
+    map.on('click', function(event) {
+        marker.setLatLng(event.latlng);
+        currentLat = event.latlng.lat;
+        currentLon = event.latlng.lng;
+        recupererAltitude();
+    });
 });
 
-function initialiserDates() {
-  const today = new Date();
-  const year = today.getFullYear();
-
-  const start = `${year}-06-01`;
-  const end = today.toISOString().split("T")[0];
-
-  document.getElementById("start-date").value = start;
-  document.getElementById("end-date").value = end;
-}
-
-function selectionnerPeriodeRapide() {
-  const value = document.getElementById("quick-period").value;
-  const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
-
-  if (value === "summer-current") {
-    const year = today.getFullYear();
-    document.getElementById("start-date").value = `${year}-06-01`;
-    document.getElementById("end-date").value = todayStr;
-    return;
-  }
-
-  if (value.startsWith("summer-")) {
-    const year = value.replace("summer-", "");
-    document.getElementById("start-date").value = `${year}-06-01`;
-    document.getElementById("end-date").value = `${year}-08-31`;
-  }
-}
-
-function selectionnerLieuPreset() {
-  const value = document.getElementById("preset-location").value;
-  const parts = value.split(",");
-
-  currentLat = parseFloat(parts[0]);
-  currentLon = parseFloat(parts[1]);
-  currentLabel = parts.slice(2).join(",");
-
-  marker.setLatLng([currentLat, currentLon]);
-  map.setView([currentLat, currentLon], 11);
-  mettreAJourTexteSpot();
-}
-
 async function rechercherLieu() {
-  const query = document.getElementById("search-input").value.trim();
-  if (!query) return;
-
-  setStatus("Recherche du lieu...");
-
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (!data || data.length === 0) {
-      setStatus("Lieu introuvable. Essaie une formulation plus précise.", "warning");
-      return;
-    }
-
-    currentLat = parseFloat(data[0].lat);
-    currentLon = parseFloat(data[0].lon);
-    currentLabel = data[0].display_name.split(",").slice(0, 3).join(",");
-
-    marker.setLatLng([currentLat, currentLon]);
-    map.setView([currentLat, currentLon], 12);
-    mettreAJourTexteSpot();
-
-    setStatus("Lieu trouvé. Tu peux lancer l'analyse.");
-  } catch (error) {
-    console.error(error);
-    setStatus("Erreur lors de la recherche du lieu.", "error");
-  }
-}
-
-function mettreAJourTexteSpot() {
-  document.getElementById("spot-text").innerText =
-    `Lat/Lon : ${currentLat.toFixed(4)}, ${currentLon.toFixed(4)} | ${currentLabel}`;
-}
-
-function setStatus(message, type = "") {
-  const el = document.getElementById("status");
-  el.className = "status";
-
-  if (type === "warning") el.classList.add("warning");
-  if (type === "error") el.classList.add("error");
-
-  el.innerText = message;
-}
-
-/*
-  Formule Humidex classique, avec point de rosée.
-  T  = température air en °C
-  Td = point de rosée en °C
-
-  e = 6.11 * exp(5417.7530 * ((1 / 273.16) - (1 / (Td + 273.15))))
-  humidex = T + 0.5555 * (e - 10)
-*/
-function calculerHumidex(tempC, dewPointC) {
-  if (tempC === null || dewPointC === null || isNaN(tempC) || isNaN(dewPointC)) {
-    return null;
-  }
-
-  if (tempC < 20) {
-    return tempC;
-  }
-
-  const e = 6.11 * Math.exp(5417.7530 * ((1 / 273.16) - (1 / (dewPointC + 273.15))));
-  const humidex = tempC + 0.5555 * (e - 10);
-
-  return Math.round(humidex * 10) / 10;
-}
-
-function formatDateFr(dateStr) {
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("fr-FR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit"
-  });
-}
-
-function badgeHumidex(maxHumidex) {
-  if (maxHumidex >= 45) return `<span class="badge b-red">Très pénible</span>`;
-  if (maxHumidex >= 40) return `<span class="badge b-orange">Fort inconfort</span>`;
-  if (maxHumidex >= 35) return `<span class="badge b-yellow">Inconfort</span>`;
-  return `<span class="badge b-green">Supportable</span>`;
-}
-
-async function chargerDonnees() {
-  const startDate = document.getElementById("start-date").value;
-  const endDate = document.getElementById("end-date").value;
-
-  if (!startDate || !endDate) {
-    setStatus("Merci de renseigner une date de début et une date de fin.", "warning");
-    return;
-  }
-
-  if (new Date(endDate) < new Date(startDate)) {
-    setStatus("La date de fin doit être postérieure à la date de début.", "warning");
-    return;
-  }
-
-  setStatus("Chargement des données Open-Meteo...");
-
-  const variables = [
-    "temperature_2m",
-    "dew_point_2m",
-    "apparent_temperature",
-    "relative_humidity_2m"
-  ].join(",");
-
-  const url =
-    `https://archive-api.open-meteo.com/v1/archive` +
-    `?latitude=${currentLat}` +
-    `&longitude=${currentLon}` +
-    `&start_date=${startDate}` +
-    `&end_date=${endDate}` +
-    `&hourly=${variables}` +
-    `&timezone=Europe%2FParis`;
-
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Erreur API : ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
-      setStatus("Aucune donnée disponible pour cette période.", "warning");
-      return;
-    }
-
-    dailyRows = agregerParJour(data.hourly);
-
-    if (dailyRows.length === 0) {
-      setStatus("Aucune donnée exploitable après agrégation.", "warning");
-      return;
-    }
-
-    afficherSynthese(dailyRows);
-    afficherGraphique(dailyRows);
-    afficherTableau(dailyRows);
-
-    setStatus(`Analyse terminée : ${dailyRows.length} jours analysés pour ${currentLabel}.`);
-  } catch (error) {
-    console.error(error);
-    setStatus("Erreur lors du chargement ou du traitement des données.", "error");
-  }
-}
-
-function agregerParJour(hourly) {
-  const byDay = {};
-
-  for (let i = 0; i < hourly.time.length; i++) {
-    const time = hourly.time[i];
-    const day = time.split("T")[0];
-
-    const temp = hourly.temperature_2m[i];
-    const dew = hourly.dew_point_2m[i];
-    const apparent = hourly.apparent_temperature[i];
-    const rh = hourly.relative_humidity_2m[i];
-
-    const humidex = calculerHumidex(temp, dew);
-
-    if (!byDay[day]) {
-      byDay[day] = {
-        date: day,
-        temps: [],
-        dews: [],
-        apparent: [],
-        rhs: [],
-        humidex: []
-      };
-    }
-
-    if (temp !== null) byDay[day].temps.push(temp);
-    if (dew !== null) byDay[day].dews.push(dew);
-    if (apparent !== null) byDay[day].apparent.push(apparent);
-    if (rh !== null) byDay[day].rhs.push(rh);
-    if (humidex !== null) byDay[day].humidex.push(humidex);
-  }
-
-  return Object.values(byDay).map(day => {
-    return {
-      date: day.date,
-      tempMin: min(day.temps),
-      tempMax: max(day.temps),
-      dewMin: min(day.dews),
-      dewMax: max(day.dews),
-      rhMean: mean(day.rhs),
-      apparentMin: min(day.apparent),
-      apparentMax: max(day.apparent),
-      humidexMin: min(day.humidex),
-      humidexMax: max(day.humidex)
-    };
-  });
-}
-
-function min(arr) {
-  if (!arr || arr.length === 0) return null;
-  return Math.round(Math.min(...arr) * 10) / 10;
-}
-
-function max(arr) {
-  if (!arr || arr.length === 0) return null;
-  return Math.round(Math.max(...arr) * 10) / 10;
-}
-
-function mean(arr) {
-  if (!arr || arr.length === 0) return null;
-  const total = arr.reduce((sum, v) => sum + v, 0);
-  return Math.round((total / arr.length) * 10) / 10;
-}
-
-function afficherSynthese(rows) {
-  const humidexMax = rows.reduce((best, r) => {
-    if (best === null || r.humidexMax > best.humidexMax) return r;
-    return best;
-  }, null);
-
-  const days35 = rows.filter(r => r.humidexMax >= 35).length;
-  const days40 = rows.filter(r => r.humidexMax >= 40).length;
-  const tropicalNights = rows.filter(r => r.tempMin >= 20).length;
-  const dew22 = rows.filter(r => r.dewMax >= 22).length;
-
-  /*
-    Score simple de pénibilité :
-    - 1 point par jour Humidex >= 35
-    - 3 points par jour Humidex >= 40
-    - 2 points par nuit tropicale
-    - 2 points par jour avec point de rosée >= 22°C
-  */
-  const score = days35 + (days40 * 3) + (tropicalNights * 2) + (dew22 * 2);
-  const scoreRatio = Math.round((score / rows.length) * 10) / 10;
-
-  let label = "été supportable";
-  if (scoreRatio >= 2) label = "été lourd";
-  if (scoreRatio >= 4) label = "été très pénible";
-  if (scoreRatio >= 6) label = "été exceptionnellement pénible";
-
-  document.getElementById("kpi-humidex-max").innerText =
-    humidexMax ? humidexMax.humidexMax.toFixed(1) : "--";
-
-  document.getElementById("kpi-humidex-max-date").innerText =
-    humidexMax ? formatDateFr(humidexMax.date) : "--";
-
-  document.getElementById("kpi-days-35").innerText = days35;
-  document.getElementById("kpi-days-40").innerText = days40;
-  document.getElementById("kpi-tropical-nights").innerText = tropicalNights;
-  document.getElementById("kpi-dew-22").innerText = dew22;
-
-  document.getElementById("kpi-score").innerText = scoreRatio;
-  document.getElementById("kpi-score-label").innerText = label;
-}
-
-function afficherGraphique(rows) {
-  const labels = rows.map(r => formatDateFr(r.date));
-
-  const humidexMin = rows.map(r => r.humidexMin);
-  const humidexMax = rows.map(r => r.humidexMax);
-  const apparentMin = rows.map(r => r.apparentMin);
-  const apparentMax = rows.map(r => r.apparentMax);
-
-  const ctx = document.getElementById("chart");
-
-  if (chart) {
-    chart.destroy();
-  }
-
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "Humidex max",
-          data: humidexMax,
-          borderColor: "#fb923c",
-          backgroundColor: "rgba(251, 146, 60, 0.12)",
-          borderWidth: 2,
-          tension: 0.25,
-          pointRadius: 2
-        },
-        {
-          label: "Humidex min",
-          data: humidexMin,
-          borderColor: "#facc15",
-          backgroundColor: "rgba(250, 204, 21, 0.08)",
-          borderWidth: 1.5,
-          tension: 0.25,
-          pointRadius: 1
-        },
-        {
-          label: "Ressenti Open-Meteo max",
-          data: apparentMax,
-          borderColor: "#38bdf8",
-          backgroundColor: "rgba(56, 189, 248, 0.08)",
-          borderWidth: 1.5,
-          tension: 0.25,
-          pointRadius: 1,
-          hidden: true
-        },
-        {
-          label: "Ressenti Open-Meteo min",
-          data: apparentMin,
-          borderColor: "#818cf8",
-          backgroundColor: "rgba(129, 140, 248, 0.08)",
-          borderWidth: 1.5,
-          tension: 0.25,
-          pointRadius: 1,
-          hidden: true
+    let q = document.getElementById("search-input").value;
+    if (!q) return;
+    try {
+        let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+        let data = await res.json();
+        if (data && data.length > 0) {
+            currentLat = parseFloat(data[0].lat);
+            currentLon = parseFloat(data[0].lon);
+            map.setView([currentLat, currentLon], 13);
+            marker.setLatLng([currentLat, currentLon]);
+            recupererAltitude();
+        } else {
+            alert("Lieu introuvable.");
         }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false
-      },
-      plugins: {
-        legend: {
-          labels: {
-            color: "#e2e8f0"
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return `${context.dataset.label} : ${context.parsed.y}`;
+    } catch(e) { console.error(e); }
+}
+
+async function recupererAltitude() {
+    try {
+        let res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${currentLat}&longitude=${currentLon}`);
+        let data = await res.json();
+        if (data.elevation && data.elevation.length > 0) {
+            currentElevation = Math.round(data.elevation[0]);
+        }
+    } catch(e) {}
+    document.getElementById("spot-text").innerText = `Lat/Lon : ${currentLat.toFixed(4)}, ${currentLon.toFixed(4)} | Alt : ${currentElevation}m`;
+}
+
+// Calcul de l'Humidex via la température (°C) et le point de rosée (°C)
+function calculerHumidex(t, td) {
+    // Formule robuste basée sur la pression de vapeur
+    let e = 6.11 * Math.exp(5417.7530 * ((1 / 273.16) - (1 / (273.15 + td))));
+    let h = t + (5/9) * (e - 10);
+    return Math.round(h * 10) / 10;
+}
+
+async function lancerComparaisonEtes() {
+    const cardRes = document.getElementById("resultats-card");
+    const divRes = document.getElementById("resultats-content");
+    cardRes.style.display = "block";
+    divRes.innerHTML = "Interrogation des archives météo en cours (cela peut prendre quelques secondes)...";
+
+    const annees = [2022, 2023, 2024, 2025, 2026];
+    let tableauHtml = `<table>
+        <tr>
+            <th>Été</th>
+            <th>H. Max</th>
+            <th>H. Moy</th>
+            <th>Heures >35</th>
+            <th>Heures >40</th>
+            <th>Nuits T°>20°</th>
+            <th>Nuits Td>20°</th>
+            <th>IPE 🎯</th>
+        </tr>`;
+
+    try {
+        for (let annee of annees) {
+            // Période estivale du 1er juin au 31 août (pour 2026, si on est en cours d'été, on prend jusqu'à la date du jour)
+            let startDate = `${annee}-06-01`;
+            let endDate = `${annee}-08-31`;
+            let today = new Date().toISOString().split('T')[0];
+            if (annee === 2026 && endDate > today) {
+                endDate = today; 
             }
-          }
+            if (startDate > today) {
+                // Si l'été 2026 n'a pas encore commencé ou tout juste
+                continue;
+            }
+
+            let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m&start_date=${startDate}&end_date=${endDate}&timezone=Europe%2FParis`;
+            
+            let response = await fetch(url);
+            let json = await response.json();
+
+            if (!json.hourly) continue;
+
+            let temps = json.hourly.temperature_2m;
+            let dewPoints = json.hourly.dew_point_2m;
+            let times = json.hourly.time;
+
+            let maxHumidex = -999;
+            let sumHumidex = 0;
+            let countValid = 0;
+            let countH35 = 0;
+            let countH40 = 0;
+
+            // Suivi journalier pour les nuits (min 00h à 07h ou min 22h à 06h, on simplifie par nuit glissante ou minuit-6h)
+            // On comptabilise par date civile les critères nocturnes
+            let nuitsChaudesMap = {}; // date -> {tempMaxNuit, tdMaxNuit} -> on va stocker par heure entre 22h et 7h
+            
+            for (let i = 0; i < temps.length; i++) {
+                let t = temps[i];
+                let td = dewPoints[i];
+                if (t === null || td === null) continue;
+
+                let h = calculerHumidex(t, td);
+                if (h > maxHumidex) maxHumidex = h;
+                sumHumidex += h;
+                countValid++;
+
+                if (h > 35) countH35++;
+                if (h > 40) countH40++;
+
+                let datePart = times[i].split("T")[0];
+                let hourNum = parseInt(times[i].split("T")[1].split(":")[0], 10);
+
+                // Définition de la nuit : de 22h à 07h du matin
+                if (hourNum >= 22 || hourNum <= 7) {
+                    if (!nuitsChaudesMap[datePart]) {
+                        nuitsChaudesMap[datePart] = { tMax: -999, tdMax: -999 };
+                    }
+                    if (t > nuitsChaudesMap[datePart].tMax) nuitsChaudesMap[datePart].tMax = t;
+                    if (td > nuitsChaudesMap[datePart].tdMax) nuitsChaudesMap[datePart].tdMax = td;
+                }
+            }
+
+            let moyHumidex = countValid > 0 ? (sumHumidex / countValid).toFixed(1) : "--";
+
+            let countNuitsT20 = 0;
+            let countNuitsTd20 = 0;
+
+            for (let d in nuitsChaudesMap) {
+                // Si la température est restée > 20°C pendant la nuit
+                if (nuitsChaudesMap[d].tMax >= 20) countNuitsT20++;
+                if (nuitsChaudesMap[d].tdMax >= 20) countNuitsTd20++;
+            }
+
+            // Calcul de l'Indice de Pénibilité Estivale (IPE) selon vos poids :
+            // Humidex > 35 (poids 1)
+            // Humidex > 40 (poids 3)
+            // Nuit T > 20 (poids 2)
+            // Point de rosée > 22 (on va compter les heures ou nuits avec Td > 22) -> adaptons sur le nombre d'heures ou nuits. 
+            // Pour coller à votre logique, comptons le nombre d'heures avec Td > 22 ou adaptons le barème.
+            // Recensons le nombre d'heures avec Td > 22 :
+            let countTd22Hours = 0;
+            for (let i = 0; i < dewPoints.length; i++) {
+                if (dewPoints[i] !== null && dewPoints[i] > 22) countTd22Hours++;
+            }
+
+            // Formule IPE pondérée (normalisée pour être lisible) :
+            // Poids : (H>35 * 1) + (H>40 * 3) + (Nuits T>20 * 2) + (Heures Td>22 * 0.5)
+            let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 2) + (countTd22Hours * 0.2));
+
+            tableauHtml += `<tr>
+                <td><strong>${annee}</strong></td>
+                <td>${maxHumidex}</td>
+                <td>${moyHumidex}</td>
+                <td>${countH35}h</td>
+                <td style="color:${countH40 > 0 ? '#f87171':'inherit'}"><strong>${countH40}h</strong></td>
+                <td>${countNuitsT20}</td>
+                <td>${countNuitsTd20}</td>
+                <td><strong style="color: #38bdf8; font-size: 0.9rem;">${ipeScore}</strong></td>
+            </tr>`;
         }
-      },
-      scales: {
-        x: {
-          ticks: {
-            color: "#94a3b8",
-            maxTicksLimit: 14
-          },
-          grid: {
-            color: "rgba(148, 163, 184, 0.15)"
-          }
-        },
-        y: {
-          ticks: {
-            color: "#94a3b8"
-          },
-          grid: {
-            color: "rgba(148, 163, 184, 0.15)"
-          },
-          title: {
-            display: true,
-            text: "Indice / °C ressenti",
-            color: "#cbd5e1"
-          }
-        }
-      }
+
+        tableauHtml += `</table>`;
+        divRes.innerHTML = tableauHtml + `<div style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px;">
+            * <strong>H. Max</strong> : Humidex maximal de l'été | <strong>H. Moy</strong> : Humidex moyen | <strong>IPE</strong> : Indice de Pénibilité Estivale synthétique.
+        </div>`;
+
+    } catch (err) {
+        divRes.innerHTML = "Erreur lors de la récupération des archives climatiques.";
+        console.error(err);
     }
-  });
-}
-
-function afficherTableau(rows) {
-  let html = `
-    <table>
-      <tr>
-        <th>Date</th>
-        <th>T° min</th>
-        <th>T° max</th>
-        <th>Rosée max</th>
-        <th>Humidex min</th>
-        <th>Humidex max</th>
-        <th>Ressenti max</th>
-        <th>Humidité moy.</th>
-        <th>Niveau</th>
-      </tr>
-  `;
-
-  rows.forEach(r => {
-    html += `
-      <tr>
-        <td>${formatDateFr(r.date)}</td>
-        <td>${val(r.tempMin)} °C</td>
-        <td>${val(r.tempMax)} °C</td>
-        <td>${val(r.dewMax)} °C</td>
-        <td>${val(r.humidexMin)}</td>
-        <td><strong>${val(r.humidexMax)}</strong></td>
-        <td>${val(r.apparentMax)} °C</td>
-        <td>${val(r.rhMean)} %</td>
-        <td style="text-align:left">${badgeHumidex(r.humidexMax)}</td>
-      </tr>
-    `;
-  });
-
-  html += `</table>`;
-
-  document.getElementById("table-container").innerHTML = html;
-}
-
-function val(v) {
-  if (v === null || v === undefined || isNaN(v)) return "--";
-  return Number(v).toFixed(1);
-}
-
-function telechargerCSV() {
-  if (!dailyRows || dailyRows.length === 0) {
-    setStatus("Aucune donnée à exporter. Lance d'abord une analyse.", "warning");
-    return;
-  }
-
-  const headers = [
-    "date",
-    "lieu",
-    "latitude",
-    "longitude",
-    "temperature_min_c",
-    "temperature_max_c",
-    "point_rosee_max_c",
-    "humidex_min",
-    "humidex_max",
-    "ressenti_openmeteo_min_c",
-    "ressenti_openmeteo_max_c",
-    "humidite_relative_moyenne_pct"
-  ];
-
-  const lines = [headers.join(";")];
-
-  dailyRows.forEach(r => {
-    lines.push([
-      r.date,
-      `"${currentLabel.replaceAll('"', '""')}"`,
-      currentLat.toFixed(5),
-      currentLon.toFixed(5),
-      val(r.tempMin).replace(".", ","),
-      val(r.tempMax).replace(".", ","),
-      val(r.dewMax).replace(".", ","),
-      val(r.humidexMin).replace(".", ","),
-      val(r.humidexMax).replace(".", ","),
-      val(r.apparentMin).replace(".", ","),
-      val(r.apparentMax).replace(".", ","),
-      val(r.rhMean).replace(".", ",")
-    ].join(";"));
-  });
-
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `bilan_humidex_${currentLabel.replaceAll(" ", "_")}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  URL.revokeObjectURL(url);
 }
 </script>
+
 </body>
 </html>
