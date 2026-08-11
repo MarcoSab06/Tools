@@ -6,9 +6,11 @@
     <title>Bilan & Pénibilité Estivale - Humidex</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Intégration de Chart.js pour le graphique min/max -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 800px; margin: auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 850px; margin: auto; }
         h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
@@ -21,6 +23,8 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; text-align: center; }
         th, td { padding: 8px 4px; border-bottom: 1px solid #334155; }
         th { color: #94a3b8; font-size: 0.75rem; background: #334155; }
+        .synth-row { cursor: pointer; }
+        .synth-row:hover { background: #334155; }
         
         button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; }
         button.btn-action:hover { background: #0ea5e9; }
@@ -28,12 +32,14 @@
         .spot-info { font-size: 0.8rem; color: #94a3b8; margin-top: 5px; }
         .back-link { display: inline-block; margin-bottom: 15px; color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
         .back-link:hover { text-decoration: underline; }
+        
+        .chart-container { position: relative; height: 300px; width: 100%; margin-top: 15px; }
     </style>
 </head>
 <body>
 
     <a href="index.html" class="back-link">← Retour au menu des outils</a>
-    <h1>🌡️ Comparateur de Pénibilité Estivale (Humidex)</h1>
+    <h1>🌡️ Comparateur de Pénibilité Estivale & Climat</h1>
     
     <div class="card">
         <strong>1. Localisation de référence (Défaut : Valbonne / Sophia Antipolis) :</strong>
@@ -50,24 +56,33 @@
     <div class="card">
         <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">2. Lancer le comparatif des étés (2022 - 2026)</h3>
         <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">
-            Analyse de la période estivale du <strong>1er Juin au 31 Août</strong> pour chaque année. (Note : 2026 s'arrête à la date du jour).
+            Analyse du <strong>1er Juin au 31 Août</strong>. <em>Cliquez sur une ligne du tableau pour afficher le graphique journalier min/max de l'été correspondant.</em>
         </p>
         <button class="btn-action" onclick="lancerComparaisonEtes()">Calculer le Bilan Climatique 🚀</button>
     </div>
 
     <div class="card" id="resultats-card" style="display:none;">
-        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Résultats et Indice de Pénibilité (IPE)</h3>
+        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Synthèse & Indicateur de Pénibilité (IPE)</h3>
         <div id="resultats-content" style="overflow-x: auto;">
-            Chargement et calcul des historiques horaires...
+            Chargement des données historiques...
+        </div>
+    </div>
+
+    <div class="card" id="graph-card" style="display:none;">
+        <h3 id="graph-title" style="margin: 0 0 5px 0; font-size: 1.1rem;">📈 Chronologie Journalière</h3>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 10px;">Températures Min / Max et pic d'Humidex journalier.</div>
+        <div class="chart-container">
+            <canvas id="summerChart"></canvas>
         </div>
     </div>
 
 <script>
-// Coordonnées initiales par défaut centrées sur Valbonne / Sophia Antipolis
 let currentLat = 43.6412;
 let currentLon = 7.0084;
 let currentElevation = 200;
 let map, marker;
+let globalDataStore = {}; // Stocke les données brutes par année pour tracer les graphes à la demande
+let myChart = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     map = L.map('map').setView([currentLat, currentLon], 11);
@@ -122,9 +137,7 @@ async function recupererAltitude() {
     document.getElementById("spot-text").innerText = `Lat/Lon : ${currentLat.toFixed(4)}, ${currentLon.toFixed(4)} | Alt : ${currentElevation}m`;
 }
 
-// Calcul de l'Humidex via la température (°C) et le point de rosée (°C)
 function calculerHumidex(t, td) {
-    // Formule robuste basée sur la pression de vapeur
     let e = 6.11 * Math.exp(5417.7530 * ((1 / 273.16) - (1 / (273.15 + td))));
     let h = t + (5/9) * (e - 10);
     return Math.round(h * 10) / 10;
@@ -134,56 +147,79 @@ async function lancerComparaisonEtes() {
     const cardRes = document.getElementById("resultats-card");
     const divRes = document.getElementById("resultats-content");
     cardRes.style.display = "block";
-    divRes.innerHTML = "Interrogation des archives météo en cours (cela peut prendre quelques secondes)...";
+    divRes.innerHTML = "Interrogation des archives climatiques (Températures, Point de rosée, Pluie, Ensoleillement)...";
+    document.getElementById("graph-card").style.display = "none";
 
     const annees = [2022, 2023, 2024, 2025, 2026];
+    globalDataStore = {};
+
     let tableauHtml = `<table>
         <tr>
             <th>Été</th>
             <th>H. Max</th>
-            <th>H. Moy</th>
-            <th>Heures >35</th>
-            <th>Heures >40</th>
-            <th>Nuits T°>20°</th>
-            <th>Nuits Td>20°</th>
+            <th>Pluie</th>
+            <th>Soleil</th>
+            <th>H >35</th>
+            <th>H >40</th>
+            <th>Nuits T>20</th>
             <th>IPE 🎯</th>
         </tr>`;
 
     try {
         for (let annee of annees) {
-            // Période estivale du 1er juin au 31 août (pour 2026, si on est en cours d'été, on prend jusqu'à la date du jour)
             let startDate = `${annee}-06-01`;
             let endDate = `${annee}-08-31`;
             let today = new Date().toISOString().split('T')[0];
             if (annee === 2026 && endDate > today) {
                 endDate = today; 
             }
-            if (startDate > today) {
-                // Si l'été 2026 n'a pas encore commencé ou tout juste
-                continue;
-            }
+            if (startDate > today) continue;
 
-            let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m&start_date=${startDate}&end_date=${endDate}&timezone=Europe%2FParis`;
+            // On demande en hourly : température, point de rosée, pluie
+            // On demande en daily : somme des précipitations, durée d'ensoleillement (sunshine_duration en secondes)
+            let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m,precipitation&daily=precipitation_sum,sunshine_duration&start_date=${startDate}&end_date=${endDate}&timezone=Europe%2FParis`;
             
             let response = await fetch(url);
             let json = await response.json();
 
-            if (!json.hourly) continue;
+            if (!json.hourly || !json.daily) continue;
 
             let temps = json.hourly.temperature_2m;
             let dewPoints = json.hourly.dew_point_2m;
             let times = json.hourly.time;
+            
+            let dailyTimes = json.daily.time;
+            let dailyPrecip = json.daily.precipitation_sum;
+            let dailySunshine = json.daily.sunshine_duration; // en secondes
+
+            // Stockage pour le graphique
+            globalDataStore[annee] = {
+                dates: dailyTimes,
+                tMin: [],
+                tMax: [],
+                hMax: []
+            };
 
             let maxHumidex = -999;
-            let sumHumidex = 0;
-            let countValid = 0;
             let countH35 = 0;
             let countH40 = 0;
+            let nuitsChaudesMap = {};
+            let totalPrecipEstiv = 0;
+            let totalSunHours = 0;
 
-            // Suivi journalier pour les nuits (min 00h à 07h ou min 22h à 06h, on simplifie par nuit glissante ou minuit-6h)
-            // On comptabilise par date civile les critères nocturnes
-            let nuitsChaudesMap = {}; // date -> {tempMaxNuit, tdMaxNuit} -> on va stocker par heure entre 22h et 7h
-            
+            // Cumuls pluie et soleil journaliers
+            if (dailyPrecip) {
+                totalPrecipEstiv = dailyPrecip.reduce((a, b) => a + (b || 0), 0);
+            }
+            if (dailySunshine) {
+                let totalSeconds = dailySunshine.reduce((a, b) => a + (b || 0), 0);
+                totalSunHours = Math.round(totalSeconds / 3600);
+            }
+
+            // Reconstruction des min/max journaliers par passe sur les hourly
+            let dailyTempsMap = {};
+            let dailyHumidexMap = {};
+
             for (let i = 0; i < temps.length; i++) {
                 let t = temps[i];
                 let td = dewPoints[i];
@@ -191,73 +227,163 @@ async function lancerComparaisonEtes() {
 
                 let h = calculerHumidex(t, td);
                 if (h > maxHumidex) maxHumidex = h;
-                sumHumidex += h;
-                countValid++;
-
                 if (h > 35) countH35++;
                 if (h > 40) countH40++;
 
                 let datePart = times[i].split("T")[0];
                 let hourNum = parseInt(times[i].split("T")[1].split(":")[0], 10);
 
-                // Définition de la nuit : de 22h à 07h du matin
+                // Nuit (22h à 07h)
                 if (hourNum >= 22 || hourNum <= 7) {
-                    if (!nuitsChaudesMap[datePart]) {
-                        nuitsChaudesMap[datePart] = { tMax: -999, tdMax: -999 };
-                    }
+                    if (!nuitsChaudesMap[datePart]) nuitsChaudesMap[datePart] = { tMax: -999 };
                     if (t > nuitsChaudesMap[datePart].tMax) nuitsChaudesMap[datePart].tMax = t;
-                    if (td > nuitsChaudesMap[datePart].tdMax) nuitsChaudesMap[datePart].tdMax = td;
                 }
+
+                // Pour le graphique
+                if (!dailyTempsMap[datePart]) dailyTempsMap[datePart] = [];
+                dailyTempsMap[datePart].push(t);
+                if (!dailyHumidexMap[datePart]) dailyHumidexMap[datePart] = [];
+                dailyHumidexMap[datePart].push(h);
             }
 
-            let moyHumidex = countValid > 0 ? (sumHumidex / countValid).toFixed(1) : "--";
+            // Remplissage des tableaux min/max pour le chart de l'année
+            for (let d of dailyTimes) {
+                let tArr = dailyTempsMap[d] || [0];
+                let hArr = dailyHumidexMap[d] || [0];
+                let minT = Math.min(...tArr);
+                let maxT = Math.max(...tArr);
+                let maxH = Math.max(...hArr);
+
+                globalDataStore[annee].tMin.push(Math.round(minT * 10) / 10);
+                globalDataStore[annee].tMax.push(Math.round(maxT * 10) / 10);
+                globalDataStore[annee].hMax.push(maxH);
+            }
 
             let countNuitsT20 = 0;
-            let countNuitsTd20 = 0;
-
             for (let d in nuitsChaudesMap) {
-                // Si la température est restée > 20°C pendant la nuit
                 if (nuitsChaudesMap[d].tMax >= 20) countNuitsT20++;
-                if (nuitsChaudesMap[d].tdMax >= 20) countNuitsTd20++;
             }
 
-            // Calcul de l'Indice de Pénibilité Estivale (IPE) selon vos poids :
-            // Humidex > 35 (poids 1)
-            // Humidex > 40 (poids 3)
-            // Nuit T > 20 (poids 2)
-            // Point de rosée > 22 (on va compter les heures ou nuits avec Td > 22) -> adaptons sur le nombre d'heures ou nuits. 
-            // Pour coller à votre logique, comptons le nombre d'heures avec Td > 22 ou adaptons le barème.
-            // Recensons le nombre d'heures avec Td > 22 :
             let countTd22Hours = 0;
             for (let i = 0; i < dewPoints.length; i++) {
                 if (dewPoints[i] !== null && dewPoints[i] > 22) countTd22Hours++;
             }
 
-            // Formule IPE pondérée (normalisée pour être lisible) :
-            // Poids : (H>35 * 1) + (H>40 * 3) + (Nuits T>20 * 2) + (Heures Td>22 * 0.5)
             let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 2) + (countTd22Hours * 0.2));
 
-            tableauHtml += `<tr>
-                <td><strong>${annee}</strong></td>
+            tableauHtml += `<tr class="synth-row" onclick="afficherGraphique(${annee})">
+                <td><strong>${annee} 📊</strong></td>
                 <td>${maxHumidex}</td>
-                <td>${moyHumidex}</td>
+                <td>${Math.round(totalPrecipEstiv)} mm</td>
+                <td>${totalSunHours} h</td>
                 <td>${countH35}h</td>
                 <td style="color:${countH40 > 0 ? '#f87171':'inherit'}"><strong>${countH40}h</strong></td>
                 <td>${countNuitsT20}</td>
-                <td>${countNuitsTd20}</td>
                 <td><strong style="color: #38bdf8; font-size: 0.9rem;">${ipeScore}</strong></td>
             </tr>`;
         }
 
         tableauHtml += `</table>`;
         divRes.innerHTML = tableauHtml + `<div style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px;">
-            * <strong>H. Max</strong> : Humidex maximal de l'été | <strong>H. Moy</strong> : Humidex moyen | <strong>IPE</strong> : Indice de Pénibilité Estivale synthétique.
+            * <strong>Astuce</strong> : Cliquez sur une ligne de l'été souhaité pour afficher le graphique journalier des températures et de l'Humidex.
         </div>`;
+
+        // Afficher directement l'année la plus récente par défaut
+        if (annees.includes(2026) && globalDataStore[2026]) {
+            afficherGraphique(2026);
+        } else if (globalDataStore[2025]) {
+            afficherGraphique(2025);
+        }
 
     } catch (err) {
         divRes.innerHTML = "Erreur lors de la récupération des archives climatiques.";
         console.error(err);
     }
+}
+
+function afficherGraphique(annee) {
+    if (!globalDataStore[annee]) return;
+    
+    document.getElementById("graph-card").style.display = "block";
+    document.getElementById("graph-title").innerText = `📈 Chronologie Journalière - Été ${annee}`;
+
+    let dataObj = globalDataStore[annee];
+    let ctx = document.getElementById('summerChart').getContext('2d');
+
+    if (myChart) {
+        myChart.destroy();
+    }
+
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dataObj.dates,
+            datasets: [
+                {
+                    label: 'Max Quotidien (°C)',
+                    data: dataObj.tMax,
+                    borderColor: '#f87171',
+                    backgroundColor: '#f87171',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    label: 'Min Quotidien (°C)',
+                    data: dataObj.tMin,
+                    borderColor: '#38bdf8',
+                    backgroundColor: '#38bdf8',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    label: 'Humidex Max du jour',
+                    data: dataObj.hMax,
+                    borderColor: '#fbbf24',
+                    backgroundColor: '#fbbf24',
+                    borderWidth: 1.5,
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    yAxisID: 'y1',
+                    tension: 0.2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                x: {
+                    grid: { color: '#334155' },
+                    ticks: { color: '#94a3b8', maxTicksLimit: 10 }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Température (°C)', color: '#94a3b8' },
+                    grid: { color: '#334155' },
+                    ticks: { color: '#94a3b8' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'Indice Humidex', color: '#fbbf24' },
+                    grid: { drawOnChartArea: false },
+                    ticks: { color: '#fbbf24' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#f8fafc', font: { size: 11 } } }
+            }
+        }
+    });
 }
 </script>
 
