@@ -3,541 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bilan & Pénibilité Estivale - Humidex</title>
+    <title>Bilan & Pénibilité Estivale</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 900px; margin: auto; }
-        h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-        input[type="text"], select { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 8px 12px; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
-        input[type="text"] { width: 100%; }
-        .search-box { display: flex; gap: 8px; margin-bottom: 10px; }
-        .search-box button { background: #38bdf8; color: #0f172a; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        
-        #map { height: 180px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.7rem; text-align: center; }
-        th, td { padding: 6px 2px; border-bottom: 1px solid #334155; }
-        th { color: #94a3b8; font-size: 0.65rem; background: #334155; }
-        .synth-row { cursor: pointer; }
-        .synth-row:hover { background: #334155; }
-        
-        button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; }
-        button.btn-action:hover { background: #0ea5e9; }
-        
-        .spot-info { font-size: 0.8rem; color: #94a3b8; margin-top: 5px; }
-        .back-link { display: inline-block; margin-bottom: 15px; color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
-        .back-link:hover { text-decoration: underline; }
-        
-        .chart-container { position: relative; height: 320px; width: 100%; margin-top: 15px; }
-        .graph-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; background: #0f172a; padding: 10px; border-radius: 8px; }
-        .persistence-box { font-size: 0.75rem; color: #94a3b8; background: #0f172a; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; justify-content: space-around; text-align: center; flex-wrap: wrap; gap: 5px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .year-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; background: #0f172a; padding: 10px; border-radius: 8px; }
+        input[type="date"] { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 8px; border-radius: 6px; }
+        button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
+        .chart-container { height: 250px; width: 100%; margin-bottom: 30px; }
+        table { width: 100%; font-size: 0.7rem; border-collapse: collapse; }
+        th, td { padding: 5px; border-bottom: 1px solid #334155; text-align: center; }
     </style>
 </head>
 <body>
 
-    <a href="index.html" class="back-link">← Retour au menu des outils</a>
-    <h1>🌡️ Bilan & Pénibilité Estivale (Humidex & Persistance)</h1>
+    <h1>🌡️ Pénibilité Estivale</h1>
     
     <div class="card">
-        <strong>1. Localisation de référence :</strong>
-        <div class="search-box" style="margin-top: 8px;">
-            <input type="text" id="search-input" placeholder="Rechercher (ex: Valbonne, Antibes, Nice)..." value="Valbonne">
-            <button onclick="rechercherLieu()">Chercher</button>
+        <strong>Période & Lieu :</strong>
+        <div class="controls">
+            <div><label>Début : </label><input type="date" id="date-start" value="2026-06-01"></div>
+            <div><label>Fin : </label><input type="date" id="date-end" value="2026-08-31"></div>
         </div>
-        <div id="map"></div>
-        <div class="spot-info" id="spot-text">
-            Lat/Lon : 43.6412, 7.0084 | Alt : 200m
-        </div>
+        <input type="text" id="search-input" value="Valbonne" style="width: 100%; margin-bottom: 10px;">
+        <button class="btn-action" onclick="lancerAnalyse()">Calculer le bilan sur la période 🚀</button>
     </div>
 
-    <div class="card">
-        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">2. Lancer le comparatif des étés (2022 - 2026)</h3>
-        <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">
-            Analyse du 1er Juin au 31 Août. Cliquez sur une ligne du tableau pour changer l'année principale du premier graphe.
-        </p>
-        <button class="btn-action" onclick="lancerComparaisonEtes()">Calculer le Bilan Climatique 🚀</button>
+    <div class="card" id="selector-card" style="display:none;">
+        <strong>Sélectionner les années à comparer :</strong>
+        <div class="year-selector" id="year-checks"></div>
     </div>
 
-    <div class="card" id="resultats-card" style="display:none;">
-        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Synthèse & Persistance</h3>
-        <div id="resultats-content" style="overflow-x: auto;">
-            Chargement des données historiques...
-        </div>
-    </div>
-
-    <!-- Graphe 1 : Comparatif 2 années détaillées -->
-    <div class="card" id="graph-card" style="display:none;">
-        <div class="graph-controls">
-            <h3 id="graph-title" style="margin: 0; font-size: 1.0rem;">📈 Chronologie T° & Humidex</h3>
-            <div>
-                <label for="compare-select" style="font-size: 0.8rem; color: #94a3b8;">Comparer avec : </label>
-                <select id="compare-select" onchange="mettreAJourGraphiquePrincipal()">
-                    <option value="">Aucune</option>
-                </select>
-            </div>
-        </div>
-        <div class="chart-container">
-            <canvas id="summerChart"></canvas>
-        </div>
-        <div class="persistence-box" id="persistence-stats"></div>
-    </div>
-
-    <!-- Graphes 2, 3, 4 : Comparatif multi-années (T° Min, T° Max, Humidex Max) -->
-    <div class="card" id="multi-graph-card" style="display:none;">
-        <h3 style="margin: 0 0 5px 0; font-size: 1.1rem;">📉 Comparatif Multi-Années (Toutes les saisons)</h3>
-        
-        <h4 style="color: #38bdf8; margin: 15px 0 5px 0; font-size: 0.9rem;">Températures Minimales Quotidiennes (°C)</h4>
+    <div class="card" id="results-card" style="display:none;">
+        <div id="resultats-content"></div>
         <div class="chart-container"><canvas id="multiMinChart"></canvas></div>
-
-        <h4 style="color: #f87171; margin: 20px 0 5px 0; font-size: 0.9rem;">Températures Maximales Quotidiennes (°C)</h4>
         <div class="chart-container"><canvas id="multiMaxChart"></canvas></div>
-
-        <h4 style="color: #fbbf24; margin: 20px 0 5px 0; font-size: 0.9rem;">Indicateur Humidex Max Quotidien</h4>
         <div class="chart-container"><canvas id="multiHumidexChart"></canvas></div>
     </div>
 
 <script>
-let currentLat = 43.6412;
-let currentLon = 7.0084;
-let currentElevation = 200;
-let map, marker;
-let globalDataStore = {}; 
-let myChart = null;
-let multiMinChart = null, multiMaxChart = null, multiHumidexChart = null;
-let currentSelectedAnnee = null;
-let listeAnneesDisponibles = [];
-
-document.addEventListener("DOMContentLoaded", () => {
-    map = L.map('map').setView([currentLat, currentLon], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
-
-    marker = L.marker([currentLat, currentLon], {draggable: true}).addTo(map);
-
-    marker.on('dragend', function(event) {
-        let pos = marker.getLatLng();
-        currentLat = pos.lat;
-        currentLon = pos.lng;
-        recupererAltitude();
-    });
-
-    map.on('click', function(event) {
-        marker.setLatLng(event.latlng);
-        currentLat = event.latlng.lat;
-        currentLon = event.latlng.lng;
-        recupererAltitude();
-    });
-});
-
-async function rechercherLieu() {
-    let q = document.getElementById("search-input").value;
-    if (!q) return;
-    try {
-        let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
-        let data = await res.json();
-        if (data && data.length > 0) {
-            currentLat = parseFloat(data[0].lat);
-            currentLon = parseFloat(data[0].lon);
-            map.setView([currentLat, currentLon], 13);
-            marker.setLatLng([currentLat, currentLon]);
-            recupererAltitude();
-        } else {
-            alert("Lieu introuvable.");
-        }
-    } catch(e) { console.error(e); }
-}
-
-async function recupererAltitude() {
-    try {
-        let res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${currentLat}&longitude=${currentLon}`);
-        let data = await res.json();
-        if (data.elevation && data.elevation.length > 0) {
-            currentElevation = Math.round(data.elevation[0]);
-        }
-    } catch(e) {}
-    document.getElementById("spot-text").innerText = `Lat/Lon : ${currentLat.toFixed(4)}, ${currentLon.toFixed(4)} | Alt : ${currentElevation}m`;
-}
+let globalDataStore = {};
+let charts = {};
 
 function calculerHumidex(t, td) {
     let e = 6.11 * Math.exp(5417.7530 * ((1 / 273.16) - (1 / (273.15 + td))));
-    let h = t + (5/9) * (e - 10);
-    return Math.round(h * 10) / 10;
+    return Math.round((t + (5/9) * (e - 10)) * 10) / 10;
 }
 
-async function lancerComparaisonEtes() {
-    const cardRes = document.getElementById("resultats-card");
-    const divRes = document.getElementById("resultats-content");
-    cardRes.style.display = "block";
-    divRes.innerHTML = "Interrogation des archives climatiques...";
-    document.getElementById("graph-card").style.display = "none";
-    document.getElementById("multi-graph-card").style.display = "none";
-
+async function lancerAnalyse() {
     const annees = [2022, 2023, 2024, 2025, 2026];
+    const dStart = document.getElementById("date-start").value;
+    const dEnd = document.getElementById("date-end").value;
+    
+    document.getElementById("resultats-content").innerHTML = "Calcul en cours...";
+    document.getElementById("results-card").style.display = "block";
+    document.getElementById("selector-card").style.display = "block";
+    
+    let checksHtml = "";
     globalDataStore = {};
-    listeAnneesDisponibles = [];
 
-    let tableauHtml = `<table>
-        <tr>
-            <th>Été</th>
-            <th>H.Max</th>
-            <th>Pluie</th>
-            <th>Soleil</th>
-            <th>H>35</th>
-            <th>H>40</th>
-            <th>Nuits>20</th>
-            <th>Nuits>25</th>
-            <th>Max Nuits Conséc.</th>
-            <th>Max Torrides Conséc.</th>
-            <th>Max Chaleur Conséc.</th>
-            <th>IPE 🎯</th>
-        </tr>`;
+    for (let annee of annees) {
+        // Ajuster la requête pour la période donnée
+        let start = `${annee}-${dStart.split('-')[1]}-${dStart.split('-')[2]}`;
+        let end = `${annee}-${dEnd.split('-')[1]}-${dEnd.split('-')[2]}`;
+        
+        // Validation basique
+        if (new Date(start) > new Date()) continue;
 
-    let selectCmp = document.getElementById("compare-select");
-    selectCmp.innerHTML = `<option value="">Aucune</option>`;
-
-    try {
-        for (let annee of annees) {
-            let startDate = `${annee}-06-01`;
-            let endDate = `${annee}-08-31`;
-            let today = new Date().toISOString().split('T')[0];
-            if (annee === 2026 && endDate > today) endDate = today; 
-            if (startDate > today) continue;
-
-            let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m,precipitation&daily=precipitation_sum,sunshine_duration&start_date=${startDate}&end_date=${endDate}&timezone=Europe%2FParis`;
-            
-            let response = await fetch(url);
-            let json = await response.json();
-            if (!json.hourly || !json.daily) continue;
-
-            listeAnneesDisponibles.push(annee);
-
-            let temps = json.hourly.temperature_2m;
-            let dewPoints = json.hourly.dew_point_2m;
-            let times = json.hourly.time;
-            let dailyPrecip = json.daily.precipitation_sum;
-            let dailySunshine = json.daily.sunshine_duration;
-
-            let maxHumidex = -999, countH35 = 0, countH40 = 0;
-            let totalPrecipEstiv = dailyPrecip ? dailyPrecip.reduce((a, b) => a + (b || 0), 0) : 0;
-            let totalSunHours = dailySunshine ? Math.round(dailySunshine.reduce((a, b) => a + (b || 0), 0) / 3600) : 0;
-
-            let dailyTMaxMap = {};
-            let dailyTMinMap = {};
-            let dailyHMaxMap = {};
-            let nuitsChaudesMap = {};
-            let nuitsTorridesMap = {};
-
-            for (let i = 0; i < temps.length; i++) {
-                let t = temps[i], td = dewPoints[i];
-                if (t === null || td === null) continue;
-
-                let h = calculerHumidex(t, td);
-                if (h > maxHumidex) maxHumidex = h;
-                if (h > 35) countH35++;
-                if (h > 40) countH40++;
-
-                let datePart = times[i].split("T")[0];
-                let hourNum = parseInt(times[i].split("T")[1].split(":")[0], 10);
-
-                if (!dailyTMaxMap[datePart]) dailyTMaxMap[datePart] = [];
-                dailyTMaxMap[datePart].push(t);
-                if (!dailyTMinMap[datePart]) dailyTMinMap[datePart] = [];
-                dailyTMinMap[datePart].push(t);
-                if (!dailyHMaxMap[datePart]) dailyHMaxMap[datePart] = [];
-                dailyHMaxMap[datePart].push(h);
-
-                if (hourNum >= 22 || hourNum <= 7) {
-                    if (!nuitsChaudesMap[datePart]) nuitsChaudesMap[datePart] = { tMax: -999 };
-                    if (t > nuitsChaudesMap[datePart].tMax) nuitsChaudesMap[datePart].tMax = t;
-
-                    if (!nuitsTorridesMap[datePart]) nuitsTorridesMap[datePart] = { tMax: -999 };
-                    if (t > nuitsTorridesMap[datePart].tMax) nuitsTorridesMap[datePart].tMax = t;
-                }
-            }
-
-            let dailyDates = json.daily.time;
-            let maxNuitsConsecutives = 0, currentNuitsConsec = 0;
-            let maxTorridesConsecutives = 0, currentTorridesConsec = 0;
-            let maxChaleurConsecutives = 0, currentChaleurConsec = 0;
-
-            let currentDayTMax = [];
-            let currentDayTMin = [];
-            let currentDayHMax = [];
-
-            for (let dStr of dailyDates) {
-                let tArr = dailyTMaxMap[dStr] || [0];
-                let maxT = Math.max(...tArr);
-                let minT = Math.min(...(dailyTMinMap[dStr] || [0]));
-                let maxH = Math.max(...(dailyHMaxMap[dStr] || [0]));
-
-                currentDayTMax.push(Math.round(maxT * 10) / 10);
-                currentDayTMin.push(Math.round(minT * 10) / 10);
-                currentDayHMax.push(maxH);
-
-                let nuitChaude = (nuitsChaudesMap[dStr] && nuitsChaudesMap[dStr].tMax >= 20);
-                if (nuitChaude) {
-                    currentNuitsConsec++;
-                    if (currentNuitsConsec > maxNuitsConsecutives) maxNuitsConsecutives = currentNuitsConsec;
-                } else {
-                    currentNuitsConsec = 0;
-                }
-
-                let nuitTorride = (nuitsTorridesMap[dStr] && nuitsTorridesMap[dStr].tMax >= 25);
-                if (nuitTorride) {
-                    currentTorridesConsec++;
-                    if (currentTorridesConsec > maxTorridesConsecutives) maxTorridesConsecutives = currentTorridesConsec;
-                } else {
-                    currentTorridesConsec = 0;
-                }
-
-                if (maxT >= 30) {
-                    currentChaleurConsec++;
-                    if (currentChaleurConsec > maxChaleurConsecutives) maxChaleurConsecutives = currentChaleurConsec;
-                } else {
-                    currentChaleurConsec = 0;
-                }
-            }
-
-            globalDataStore[annee] = {
-                tMax: currentDayTMax,
-                tMin: currentDayTMin,
-                hMax: currentDayHMax,
-                maxNuits: maxNuitsConsecutives,
-                maxTorrides: maxTorridesConsecutives,
-                maxChaleur: maxChaleurConsecutives
-            };
-
-            let countNuitsT20 = 0;
-            let countNuitsT25 = 0;
-            for (let d in nuitsChaudesMap) {
-                if (nuitsChaudesMap[d].tMax >= 20) countNuitsT20++;
-                if (nuitsChaudesMap[d].tMax >= 25) countNuitsT25++;
-            }
-
-            let countTd22Hours = 0;
-            for (let i = 0; i < dewPoints.length; i++) {
-                if (dewPoints[i] !== null && dewPoints[i] > 22) countTd22Hours++;
-            }
-
-            let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 1.5) + (countNuitsT25 * 3) + (countTd22Hours * 0.2));
-
-            tableauHtml += `<tr class="synth-row" onclick="selectionnerAnneeGraph(${annee})">
-                <td><strong>${annee} 📊</strong></td>
-                <td>${maxHumidex}</td>
-                <td>${Math.round(totalPrecipEstiv)}mm</td>
-                <td>${totalSunHours}h</td>
-                <td>${countH35}h</td>
-                <td style="color:${countH40 > 0 ? '#f87171':'inherit'}"><strong>${countH40}h</strong></td>
-                <td>${countNuitsT20}</td>
-                <td style="color:${countNuitsT25 > 0 ? '#f87171':'inherit'}"><strong>${countNuitsT25}</strong></td>
-                <td><strong>${maxNuitsConsecutives} j</strong></td>
-                <td><strong>${maxTorridesConsecutives} j</strong></td>
-                <td><strong>${maxChaleurConsecutives} j</strong></td>
-                <td><strong style="color: #38bdf8;">${ipeScore}</strong></td>
-            </tr>`;
-
-            let opt = document.createElement('option');
-            opt.value = annee;
-            opt.innerText = `Été ${annee}`;
-            selectCmp.appendChild(opt);
+        let url = `https://archive-api.open-meteo.com/v1/archive?latitude=43.64&longitude=7.0&hourly=temperature_2m,dew_point_2m&start_date=${start}&end_date=${end}&timezone=Europe%2FParis`;
+        let res = await fetch(url);
+        let json = await res.json();
+        
+        if (json.hourly) {
+            processYear(annee, json);
+            checksHtml += `<label><input type="checkbox" value="${annee}" checked onchange="updateCharts()"> ${annee}</label>`;
         }
-
-        tableauHtml += `</table>`;
-        divRes.innerHTML = tableauHtml;
-
-        // Afficher les graphiques
-        if (annees.includes(2026) && globalDataStore[2026]) {
-            selectionnerAnneeGraph(2026);
-        } else if (listeAnneesDisponibles.length > 0) {
-            selectionnerAnneeGraph(listeAnneesDisponibles[listeAnneesDisponibles.length - 1]);
-        }
-
-        genererGraphiquesMultiAnnees();
-
-    } catch (err) {
-        divRes.innerHTML = "Erreur lors de la récupération des archives.";
-        console.error(err);
     }
+    document.getElementById("year-checks").innerHTML = checksHtml;
+    updateCharts();
 }
 
-function selectionnerAnneeGraph(annee) {
-    currentSelectedAnnee = annee;
-    mettreAJourGraphiquePrincipal();
+function processYear(annee, json) {
+    let temps = json.hourly.temperature_2m;
+    let dewPoints = json.hourly.dew_point_2m;
+    let times = json.hourly.time;
+    
+    let dailyTMax = [], dailyTMin = [], dailyHMax = [];
+    let currentMap = {};
+
+    for(let i=0; i<temps.length; i++) {
+        let date = times[i].split('T')[0];
+        if(!currentMap[date]) currentMap[date] = {t: [], h: []};
+        currentMap[date].t.push(temps[i]);
+        currentMap[date].h.push(calculerHumidex(temps[i], dewPoints[i]));
+    }
+    
+    Object.keys(currentMap).sort().forEach(d => {
+        dailyTMax.push(Math.max(...currentMap[d]));
+        dailyTMin.push(Math.min(...currentMap[d]));
+        dailyHMax.push(Math.max(...currentMap[d].h));
+    });
+
+    globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax };
 }
 
-function mettreAJourGraphiquePrincipal() {
-    if (!currentSelectedAnnee || !globalDataStore[currentSelectedAnnee]) return;
+function updateCharts() {
+    let checked = Array.from(document.querySelectorAll('#year-checks input:checked')).map(i => i.value);
+    
+    const couleurs = {2022: '#94a3b8', 2023: '#38bdf8', 2024: '#34d399', 2025: '#fbbf24', 2026: '#f87171'};
 
-    document.getElementById("graph-card").style.display = "block";
-    let compAnnee = document.getElementById("compare-select").value;
-
-    document.getElementById("graph-title").innerText = `📈 Chronologie T° & Humidex : Été ${currentSelectedAnnee}` + (compAnnee ? ` vs Été ${compAnnee}` : "");
-
-    let dMain = globalDataStore[currentSelectedAnnee];
-    let persistHtml = `<span>Séquence max nuits $\\ge$ 20°C : <strong>${dMain.maxNuits}</strong></span>
-                       <span>Séquence max nuits torrides $\\ge$ 25°C : <strong style="color:#f87171;">${dMain.maxTorrides}</strong></span>
-                       <span>Séquence max chaleurs $\\ge$ 30°C : <strong>${dMain.maxChaleur} jours</strong></span>`;
-    if (compAnnee && globalDataStore[compAnnee]) {
-        let dCmp = globalDataStore[compAnnee];
-        persistHtml += `<span style="border-left: 1px solid #334155; padding-left: 8px;">${compAnnee} → Nuits20°:<strong>${dCmp.maxNuits}</strong> | Nuits25°:<strong style="color:#f87171;">${dCmp.maxTorrides}</strong></span>`;
-    }
-    document.getElementById("persistence-stats").innerHTML = persistHtml;
-
-    let labels = [];
-    for (let i = 1; i <= 92; i++) labels.push(`J${i}`);
-
-    let datasets = [
-        {
-            label: `Max ${currentSelectedAnnee} (°C)`,
-            data: dMain.tMax,
-            borderColor: '#f87171',
-            backgroundColor: '#f87171',
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.2
+    const createConfig = (dataKey, label) => ({
+        type: 'line',
+        data: {
+            labels: Array.from({length: 92}, (_, i) => i+1),
+            datasets: checked.map(y => ({
+                label: y,
+                data: globalDataStore[y][dataKey],
+                borderColor: couleurs[y],
+                borderWidth: 2,
+                pointRadius: 0
+            }))
         },
-        {
-            label: `Min ${currentSelectedAnnee} (°C)`,
-            data: dMain.tMin,
-            borderColor: '#38bdf8',
-            backgroundColor: '#38bdf8',
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.2
-        },
-        {
-            label: `Humidex Max ${currentSelectedAnnee}`,
-            data: dMain.hMax,
-            borderColor: '#fbbf24',
-            backgroundColor: '#fbbf24',
-            borderWidth: 2, // Trait plein demandé
-            pointRadius: 0,
-            tension: 0.2
-        }
-    ];
-
-    if (compAnnee && globalDataStore[compAnnee]) {
-        let dCmp = globalDataStore[compAnnee];
-        datasets.push({
-            label: `Max ${compAnnee} (°C)`,
-            data: dCmp.tMax,
-            borderColor: '#f87171',
-            borderWidth: 1.5,
-            borderDash: [5, 5],
-            pointRadius: 0,
-            tension: 0.2
-        });
-        datasets.push({
-            label: `Min ${compAnnee} (°C)`,
-            data: dCmp.tMin,
-            borderColor: '#38bdf8',
-            borderWidth: 1.5,
-            borderDash: [5, 5],
-            pointRadius: 0,
-            tension: 0.2
-        });
-        datasets.push({
-            label: `Humidex Max ${compAnnee}`,
-            data: dCmp.hMax,
-            borderColor: '#fbbf24',
-            borderWidth: 1.5,
-            borderDash: [5, 5], // Humidex secondaire en pointillé
-            pointRadius: 0,
-            tension: 0.2
-        });
-    }
-
-    let ctx = document.getElementById('summerChart').getContext('2d');
-    if (myChart) myChart.destroy();
-
-    myChart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 12 } },
-                y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'Valeur (°C ou Humidex)', color: '#94a3b8' } }
-            },
-            plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } }
-        }
-    });
-}
-
-function genererGraphiquesMultiAnnees() {
-    document.getElementById("multi-graph-card").style.display = "block";
-
-    let labels = [];
-    for (let i = 1; i <= 92; i++) labels.push(`J${i}`);
-
-    const couleurs = {
-        2022: '#94a3b8',
-        2023: '#38bdf8',
-        2024: '#34d399',
-        2025: '#fbbf24',
-        2026: '#f87171'
-    };
-
-    // 1. Min Chart
-    let datasetsMin = listeAnneesDisponibles.map(annee => ({
-        label: `Été ${annee}`,
-        data: globalDataStore[annee].tMin,
-        borderColor: couleurs[annee] || '#ffffff',
-        borderWidth: annee === 2026 ? 2.5 : 1.5,
-        pointRadius: 0,
-        tension: 0.2
-    }));
-
-    if (multiMinChart) multiMinChart.destroy();
-    multiMinChart = new Chart(document.getElementById('multiMinChart').getContext('2d'), {
-        type: 'line',
-        data: { labels: labels, datasets: datasetsMin },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 10 } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: label, color: '#fff' } } }
     });
 
-    // 2. Max Chart
-    let datasetsMax = listeAnneesDisponibles.map(annee => ({
-        label: `Été ${annee}`,
-        data: globalDataStore[annee].tMax,
-        borderColor: couleurs[annee] || '#ffffff',
-        borderWidth: annee === 2026 ? 2.5 : 1.5,
-        pointRadius: 0,
-        tension: 0.2
-    }));
-
-    if (multiMaxChart) multiMaxChart.destroy();
-    multiMaxChart = new Chart(document.getElementById('multiMaxChart').getContext('2d'), {
-        type: 'line',
-        data: { labels: labels, datasets: datasetsMax },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 10 } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } } }
+    ['multiMinChart', 'multiMaxChart', 'multiHumidexChart'].forEach(id => {
+        if(charts[id]) charts[id].destroy();
     });
 
-    // 3. Humidex Max Chart
-    let datasetsHumidex = listeAnneesDisponibles.map(annee => ({
-        label: `Été ${annee}`,
-        data: globalDataStore[annee].hMax,
-        borderColor: couleurs[annee] || '#ffffff',
-        borderWidth: annee === 2026 ? 2.5 : 1.5,
-        pointRadius: 0,
-        tension: 0.2
-    }));
-
-    if (multiHumidexChart) multiHumidexChart.destroy();
-    multiHumidexChart = new Chart(document.getElementById('multiHumidexChart').getContext('2d'), {
-        type: 'line',
-        data: { labels: labels, datasets: datasetsHumidex },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 10 } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } } }
-    });
+    charts['multiMinChart'] = new Chart(document.getElementById('multiMinChart'), createConfig('tMin', 'Température Minimale'));
+    charts['multiMaxChart'] = new Chart(document.getElementById('multiMaxChart'), createConfig('tMax', 'Température Maximale'));
+    charts['multiHumidexChart'] = new Chart(document.getElementById('multiHumidexChart'), createConfig('hMax', 'Humidex Maximal'));
 }
 </script>
-
 </body>
 </html>
