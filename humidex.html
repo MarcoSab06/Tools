@@ -33,7 +33,7 @@
         .back-link { display: inline-block; margin-bottom: 15px; color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
         .back-link:hover { text-decoration: underline; }
         
-        .chart-container { position: relative; height: 350px; width: 100%; margin-top: 15px; }
+        .chart-container { position: relative; height: 320px; width: 100%; margin-top: 15px; }
         .graph-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; background: #0f172a; padding: 10px; border-radius: 8px; }
         .persistence-box { font-size: 0.75rem; color: #94a3b8; background: #0f172a; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; justify-content: space-around; text-align: center; flex-wrap: wrap; gap: 5px; }
     </style>
@@ -58,7 +58,7 @@
     <div class="card">
         <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">2. Lancer le comparatif des étés (2022 - 2026)</h3>
         <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">
-            Analyse du 1er Juin au 31 Août. Cliquez sur une ligne du tableau pour changer l'année principale.
+            Analyse du 1er Juin au 31 Août. Cliquez sur une ligne du tableau pour changer l'année principale du premier graphe.
         </p>
         <button class="btn-action" onclick="lancerComparaisonEtes()">Calculer le Bilan Climatique 🚀</button>
     </div>
@@ -70,12 +70,13 @@
         </div>
     </div>
 
+    <!-- Graphe 1 : Comparatif 2 années détaillées -->
     <div class="card" id="graph-card" style="display:none;">
         <div class="graph-controls">
-            <h3 id="graph-title" style="margin: 0; font-size: 1.0rem;">📈 Chronologie & Humidex</h3>
+            <h3 id="graph-title" style="margin: 0; font-size: 1.0rem;">📈 Chronologie T° & Humidex</h3>
             <div>
                 <label for="compare-select" style="font-size: 0.8rem; color: #94a3b8;">Comparer avec : </label>
-                <select id="compare-select" onchange="mettreAJourGraphique()">
+                <select id="compare-select" onchange="mettreAJourGraphiquePrincipal()">
                     <option value="">Aucune</option>
                 </select>
             </div>
@@ -83,9 +84,21 @@
         <div class="chart-container">
             <canvas id="summerChart"></canvas>
         </div>
-        <div class="persistence-box" id="persistence-stats">
-            <!-- Injecté dynamiquement -->
-        </div>
+        <div class="persistence-box" id="persistence-stats"></div>
+    </div>
+
+    <!-- Graphes 2, 3, 4 : Comparatif multi-années (T° Min, T° Max, Humidex Max) -->
+    <div class="card" id="multi-graph-card" style="display:none;">
+        <h3 style="margin: 0 0 5px 0; font-size: 1.1rem;">📉 Comparatif Multi-Années (Toutes les saisons)</h3>
+        
+        <h4 style="color: #38bdf8; margin: 15px 0 5px 0; font-size: 0.9rem;">Températures Minimales Quotidiennes (°C)</h4>
+        <div class="chart-container"><canvas id="multiMinChart"></canvas></div>
+
+        <h4 style="color: #f87171; margin: 20px 0 5px 0; font-size: 0.9rem;">Températures Maximales Quotidiennes (°C)</h4>
+        <div class="chart-container"><canvas id="multiMaxChart"></canvas></div>
+
+        <h4 style="color: #fbbf24; margin: 20px 0 5px 0; font-size: 0.9rem;">Indicateur Humidex Max Quotidien</h4>
+        <div class="chart-container"><canvas id="multiHumidexChart"></canvas></div>
     </div>
 
 <script>
@@ -95,7 +108,9 @@ let currentElevation = 200;
 let map, marker;
 let globalDataStore = {}; 
 let myChart = null;
+let multiMinChart = null, multiMaxChart = null, multiHumidexChart = null;
 let currentSelectedAnnee = null;
+let listeAnneesDisponibles = [];
 
 document.addEventListener("DOMContentLoaded", () => {
     map = L.map('map').setView([currentLat, currentLon], 11);
@@ -162,9 +177,11 @@ async function lancerComparaisonEtes() {
     cardRes.style.display = "block";
     divRes.innerHTML = "Interrogation des archives climatiques...";
     document.getElementById("graph-card").style.display = "none";
+    document.getElementById("multi-graph-card").style.display = "none";
 
     const annees = [2022, 2023, 2024, 2025, 2026];
     globalDataStore = {};
+    listeAnneesDisponibles = [];
 
     let tableauHtml = `<table>
         <tr>
@@ -198,6 +215,8 @@ async function lancerComparaisonEtes() {
             let response = await fetch(url);
             let json = await response.json();
             if (!json.hourly || !json.daily) continue;
+
+            listeAnneesDisponibles.push(annee);
 
             let temps = json.hourly.temperature_2m;
             let dewPoints = json.hourly.dew_point_2m;
@@ -255,7 +274,7 @@ async function lancerComparaisonEtes() {
             for (let dStr of dailyDates) {
                 let tArr = dailyTMaxMap[dStr] || [0];
                 let maxT = Math.max(...tArr);
-                let minT = Math.min(...tArr);
+                let minT = Math.min(...(dailyTMinMap[dStr] || [0]));
                 let maxH = Math.max(...(dailyHMaxMap[dStr] || [0]));
 
                 currentDayTMax.push(Math.round(maxT * 10) / 10);
@@ -307,7 +326,6 @@ async function lancerComparaisonEtes() {
                 if (dewPoints[i] !== null && dewPoints[i] > 22) countTd22Hours++;
             }
 
-            // Poids IPE ajusté incluant les nuits > 25°C
             let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 1.5) + (countNuitsT25 * 3) + (countTd22Hours * 0.2));
 
             tableauHtml += `<tr class="synth-row" onclick="selectionnerAnneeGraph(${annee})">
@@ -334,11 +352,14 @@ async function lancerComparaisonEtes() {
         tableauHtml += `</table>`;
         divRes.innerHTML = tableauHtml;
 
+        // Afficher les graphiques
         if (annees.includes(2026) && globalDataStore[2026]) {
             selectionnerAnneeGraph(2026);
-        } else {
-            selectionnerAnneeGraph(2025);
+        } else if (listeAnneesDisponibles.length > 0) {
+            selectionnerAnneeGraph(listeAnneesDisponibles[listeAnneesDisponibles.length - 1]);
         }
+
+        genererGraphiquesMultiAnnees();
 
     } catch (err) {
         divRes.innerHTML = "Erreur lors de la récupération des archives.";
@@ -348,10 +369,10 @@ async function lancerComparaisonEtes() {
 
 function selectionnerAnneeGraph(annee) {
     currentSelectedAnnee = annee;
-    mettreAJourGraphique();
+    mettreAJourGraphiquePrincipal();
 }
 
-function mettreAJourGraphique() {
+function mettreAJourGraphiquePrincipal() {
     if (!currentSelectedAnnee || !globalDataStore[currentSelectedAnnee]) return;
 
     document.getElementById("graph-card").style.display = "block";
@@ -396,8 +417,7 @@ function mettreAJourGraphique() {
             data: dMain.hMax,
             borderColor: '#fbbf24',
             backgroundColor: '#fbbf24',
-            borderWidth: 1.5,
-            borderDash: [2, 2],
+            borderWidth: 2, // Trait plein demandé
             pointRadius: 0,
             tension: 0.2
         }
@@ -415,11 +435,20 @@ function mettreAJourGraphique() {
             tension: 0.2
         });
         datasets.push({
+            label: `Min ${compAnnee} (°C)`,
+            data: dCmp.tMin,
+            borderColor: '#38bdf8',
+            borderWidth: 1.5,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            tension: 0.2
+        });
+        datasets.push({
             label: `Humidex Max ${compAnnee}`,
             data: dCmp.hMax,
             borderColor: '#fbbf24',
-            borderWidth: 1,
-            borderDash: [6, 6],
+            borderWidth: 1.5,
+            borderDash: [5, 5], // Humidex secondaire en pointillé
             pointRadius: 0,
             tension: 0.2
         });
@@ -440,6 +469,72 @@ function mettreAJourGraphique() {
             },
             plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } }
         }
+    });
+}
+
+function genererGraphiquesMultiAnnees() {
+    document.getElementById("multi-graph-card").style.display = "block";
+
+    let labels = [];
+    for (let i = 1; i <= 92; i++) labels.push(`J${i}`);
+
+    const couleurs = {
+        2022: '#94a3b8',
+        2023: '#38bdf8',
+        2024: '#34d399',
+        2025: '#fbbf24',
+        2026: '#f87171'
+    };
+
+    // 1. Min Chart
+    let datasetsMin = listeAnneesDisponibles.map(annee => ({
+        label: `Été ${annee}`,
+        data: globalDataStore[annee].tMin,
+        borderColor: couleurs[annee] || '#ffffff',
+        borderWidth: annee === 2026 ? 2.5 : 1.5,
+        pointRadius: 0,
+        tension: 0.2
+    }));
+
+    if (multiMinChart) multiMinChart.destroy();
+    multiMinChart = new Chart(document.getElementById('multiMinChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasetsMin },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 10 } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } } }
+    });
+
+    // 2. Max Chart
+    let datasetsMax = listeAnneesDisponibles.map(annee => ({
+        label: `Été ${annee}`,
+        data: globalDataStore[annee].tMax,
+        borderColor: couleurs[annee] || '#ffffff',
+        borderWidth: annee === 2026 ? 2.5 : 1.5,
+        pointRadius: 0,
+        tension: 0.2
+    }));
+
+    if (multiMaxChart) multiMaxChart.destroy();
+    multiMaxChart = new Chart(document.getElementById('multiMaxChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasetsMax },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 10 } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } } }
+    });
+
+    // 3. Humidex Max Chart
+    let datasetsHumidex = listeAnneesDisponibles.map(annee => ({
+        label: `Été ${annee}`,
+        data: globalDataStore[annee].hMax,
+        borderColor: couleurs[annee] || '#ffffff',
+        borderWidth: annee === 2026 ? 2.5 : 1.5,
+        pointRadius: 0,
+        tension: 0.2
+    }));
+
+    if (multiHumidexChart) multiHumidexChart.destroy();
+    multiHumidexChart = new Chart(document.getElementById('multiHumidexChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasetsHumidex },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 10 } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#f8fafc', font: { size: 10 } } } } }
     });
 }
 </script>
