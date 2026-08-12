@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 900px; margin: auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 950px; margin: auto; }
         h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -20,9 +20,9 @@
         
         #map { height: 180px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; text-align: center; }
-        th, td { padding: 6px 4px; border-bottom: 1px solid #334155; }
-        th { color: #94a3b8; font-size: 0.7rem; background: #334155; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.7rem; text-align: center; }
+        th, td { padding: 6px 3px; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-size: 0.65rem; background: #334155; }
         
         button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; }
         button.btn-action:hover { background: #0ea5e9; }
@@ -39,7 +39,6 @@
     <a href="index.html" class="back-link">← Retour au menu des outils</a>
     <h1>🌡️ Pénibilité Estivale & Archives Climatiques</h1>
     
-    <!-- 1. Carte et Localisation -->
     <div class="card">
         <strong>1. Localisation de référence :</strong>
         <div class="search-box" style="margin-top: 8px;">
@@ -52,7 +51,6 @@
         </div>
     </div>
 
-    <!-- 2. Paramètres de Période et Lancement -->
     <div class="card">
         <strong>2. Période d'analyse :</strong>
         <div class="controls" style="margin-top: 8px;">
@@ -62,15 +60,13 @@
         <button class="btn-action" onclick="lancerAnalyse()">Calculer le Bilan Climatique 🚀</button>
     </div>
 
-    <!-- Sélecteur d'années pour les graphiques -->
     <div class="card" id="selector-card" style="display:none;">
         <strong>Sélectionner les années à afficher sur les graphiques :</strong>
         <div class="year-selector" id="year-checks"></div>
     </div>
 
-    <!-- Résultats et Graphiques -->
     <div class="card" id="results-card" style="display:none;">
-        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Synthèse par Année</h3>
+        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Synthèse & Persistance par Année</h3>
         <div id="resultats-content" style="overflow-x: auto; margin-bottom: 20px;"></div>
         
         <h4 style="color: #38bdf8; margin: 10px 0;">Températures Minimales Quotidiennes (°C)</h4>
@@ -79,7 +75,7 @@
         <h4 style="color: #f87171; margin: 10px 0;">Températures Maximales Quotidiennes (°C)</h4>
         <div class="chart-container"><canvas id="multiMaxChart"></canvas></div>
 
-        <h4 style="color: #fbbf24; margin: 10px 0;">Indice Humidex Max Quotidien</h4>
+        <h4 style="color: #fbbf24; margin: 10px 0;">Indicateur Humidex Max Quotidien</h4>
         <div class="chart-container"><canvas id="multiHumidexChart"></canvas></div>
     </div>
 
@@ -151,8 +147,8 @@ function calculerHumidex(t, td) {
 
 async function lancerAnalyse() {
     const annees = [2022, 2023, 2024, 2025, 2026];
-    const dStart = document.getElementById("date-start").value; // Format AAAA-MM-JJ
-    const dEnd = document.getElementById("date-end").value;     // Format AAAA-MM-JJ
+    const dStart = document.getElementById("date-start").value;
+    const dEnd = document.getElementById("date-end").value;
     
     document.getElementById("resultats-content").innerHTML = "Interrogation des archives climatiques en cours...";
     document.getElementById("results-card").style.display = "block";
@@ -161,16 +157,20 @@ async function lancerAnalyse() {
     let checksHtml = "";
     globalDataStore = {};
 
-    let monthDayStart = dStart.substring(5); // MM-JJ
-    let monthDayEnd = dEnd.substring(5);     // MM-JJ
+    let monthDayStart = dStart.substring(5);
+    let monthDayEnd = dEnd.substring(5);
 
     let tableauHtml = `<table>
         <tr>
             <th>Été</th>
             <th>H.Max</th>
-            <th>H >35</th>
-            <th>H >40</th>
+            <th>H>35</th>
+            <th>H>40</th>
             <th>Nuits>20</th>
+            <th>Nuits>25</th>
+            <th>Max Nuits Conséc.</th>
+            <th>Max Torrides Conséc.</th>
+            <th>Max Chaleur Conséc.</th>
             <th>IPE 🎯</th>
         </tr>`;
 
@@ -198,6 +198,10 @@ async function lancerAnalyse() {
                     <td>${stats.countH35}h</td>
                     <td style="color:${stats.countH40 > 0 ? '#f87171':'inherit'}"><strong>${stats.countH40}h</strong></td>
                     <td>${stats.countNuitsT20}</td>
+                    <td style="color:${stats.countNuitsT25 > 0 ? '#f87171':'inherit'}"><strong>${stats.countNuitsT25}</strong></td>
+                    <td><strong>${stats.maxNuitsConsecutives} j</strong></td>
+                    <td><strong>${stats.maxTorridesConsecutives} j</strong></td>
+                    <td><strong>${stats.maxChaleurConsecutives} j</strong></td>
                     <td><strong style="color: #38bdf8;">${stats.ipeScore}</strong></td>
                 </tr>`;
             }
@@ -221,6 +225,7 @@ function processYearData(annee, json) {
     let currentMap = {};
     let maxHumidex = -999, countH35 = 0, countH40 = 0;
     let nuitsChaudesMap = {};
+    let nuitsTorridesMap = {};
 
     for(let i=0; i<temps.length; i++) {
         let t = temps[i], td = dewPoints[i];
@@ -241,19 +246,58 @@ function processYearData(annee, json) {
         if (hourNum >= 22 || hourNum <= 7) {
             if (!nuitsChaudesMap[date]) nuitsChaudesMap[date] = { tMax: -999 };
             if (t > nuitsChaudesMap[date].tMax) nuitsChaudesMap[date].tMax = t;
+
+            if (!nuitsTorridesMap[date]) nuitsTorridesMap[date] = { tMax: -999 };
+            if (t > nuitsTorridesMap[date].tMax) nuitsTorridesMap[date].tMax = t;
         }
     }
     
     let datesKeys = Object.keys(currentMap).sort();
+    
+    let maxNuitsConsecutives = 0, currentNuitsConsec = 0;
+    let maxTorridesConsecutives = 0, currentTorridesConsec = 0;
+    let maxChaleurConsecutives = 0, currentChaleurConsec = 0;
+
     datesKeys.forEach(d => {
-        dailyTMax.push(Math.max(...currentMap[d].t));
-        dailyTMin.push(Math.min(...currentMap[d].t));
-        dailyHMax.push(Math.max(...currentMap[d].h));
+        let maxT = Math.max(...currentMap[d].t);
+        let minT = Math.min(...currentMap[d].t);
+        let maxH = Math.max(...currentMap[d].h);
+
+        dailyTMax.push(maxT);
+        dailyTMin.push(minT);
+        dailyHMax.push(maxH);
+
+        let nuitChaude = (nuitsChaudesMap[d] && nuitsChaudesMap[d].tMax >= 20);
+        if (nuitChaude) {
+            currentNuitsConsec++;
+            if (currentNuitsConsec > maxNuitsConsecutives) maxNuitsConsecutives = currentNuitsConsec;
+        } else {
+            currentNuitsConsec = 0;
+        }
+
+        let nuitTorride = (nuitsTorridesMap[d] && nuitsTorridesMap[d].tMax >= 25);
+        if (nuitTorride) {
+            currentTorridesConsec++;
+            if (currentTorridesConsec > maxTorridesConsecutives) maxTorridesConsecutives = currentTorridesConsec;
+        } else {
+            currentTorridesConsec = 0;
+        }
+
+        if (maxT >= 30) {
+            currentChaleurConsec++;
+            if (currentChaleurConsec > maxChaleurConsecutives) maxChaleurConsecutives = currentChaleurConsec;
+        } else {
+            currentChaleurConsec = 0;
+        }
     });
 
     let countNuitsT20 = 0;
+    let countNuitsT25 = 0;
     for (let d in nuitsChaudesMap) {
         if (nuitsChaudesMap[d].tMax >= 20) countNuitsT20++;
+    }
+    for (let d in nuitsTorridesMap) {
+        if (nuitsTorridesMap[d].tMax >= 25) countNuitsT25++;
     }
 
     let countTd22Hours = 0;
@@ -261,18 +305,17 @@ function processYearData(annee, json) {
         if (dewPoints[i] !== null && dewPoints[i] > 22) countTd22Hours++;
     }
 
-    let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 2) + (countTd22Hours * 0.2));
+    let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 1.5) + (countNuitsT25 * 3) + (countTd22Hours * 0.2));
 
     globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax, dates: datesKeys };
 
-    return { maxHumidex, countH35, countH40, countNuitsT20, ipeScore };
+    return { maxHumidex, countH35, countH40, countNuitsT20, countNuitsT25, maxNuitsConsecutives, maxTorridesConsecutives, maxChaleurConsecutives, ipeScore };
 }
 
 function updateCharts() {
     let checked = Array.from(document.querySelectorAll('#year-checks input:checked')).map(i => i.value);
     const couleurs = {2022: '#94a3b8', 2023: '#38bdf8', 2024: '#34d399', 2025: '#fbbf24', 2026: '#f87171'};
 
-    // Trouver la plus grande série de dates pour aligner l'axe X
     let maxLabels = [];
     checked.forEach(y => {
         if (globalDataStore[y] && globalDataStore[y].dates.length > maxLabels.length) {
@@ -283,7 +326,7 @@ function updateCharts() {
     const createConfig = (dataKey, labelText) => ({
         type: 'line',
         data: {
-            labels: maxLabels.map(d => d.substring(5)), // Afficher MM-JJ sur l'axe X
+            labels: maxLabels.map(d => d.substring(5)),
             datasets: checked.map(y => ({
                 label: `Été ${y}`,
                 data: globalDataStore[y] ? globalDataStore[y][dataKey] : [],
