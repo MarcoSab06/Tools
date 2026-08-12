@@ -3,52 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bilan & Pénibilité Estivale</title>
+    <title>Bilan & Pénibilité Estivale - Humidex</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 900px; margin: auto; }
+        h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .year-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; background: #0f172a; padding: 10px; border-radius: 8px; }
-        input[type="date"] { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 8px; border-radius: 6px; }
-        button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
-        .chart-container { height: 250px; width: 100%; margin-bottom: 30px; }
-        table { width: 100%; font-size: 0.7rem; border-collapse: collapse; }
-        th, td { padding: 5px; border-bottom: 1px solid #334155; text-align: center; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .year-selector { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; background: #0f172a; padding: 10px; border-radius: 8px; }
+        input[type="date"], input[type="text"] { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 8px 12px; border-radius: 8px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        .search-box { display: flex; gap: 8px; margin-bottom: 10px; }
+        .search-box button { background: #38bdf8; color: #0f172a; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        #map { height: 180px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; text-align: center; }
+        th, td { padding: 6px 4px; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-size: 0.7rem; background: #334155; }
+        
+        button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; }
+        button.btn-action:hover { background: #0ea5e9; }
+        
+        .spot-info { font-size: 0.8rem; color: #94a3b8; margin-top: 5px; }
+        .back-link { display: inline-block; margin-bottom: 15px; color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { text-decoration: underline; }
+        
+        .chart-container { position: relative; height: 260px; width: 100%; margin-top: 15px; margin-bottom: 25px; }
     </style>
 </head>
 <body>
 
-    <h1>🌡️ Pénibilité Estivale</h1>
+    <a href="index.html" class="back-link">← Retour au menu des outils</a>
+    <h1>🌡️ Pénibilité Estivale & Archives Climatiques</h1>
     
+    <!-- 1. Carte et Localisation -->
     <div class="card">
-        <strong>Période & Lieu :</strong>
-        <div class="controls">
-            <div><label>Début : </label><input type="date" id="date-start" value="2026-06-01"></div>
-            <div><label>Fin : </label><input type="date" id="date-end" value="2026-08-31"></div>
+        <strong>1. Localisation de référence :</strong>
+        <div class="search-box" style="margin-top: 8px;">
+            <input type="text" id="search-input" placeholder="Rechercher (ex: Valbonne, Antibes, Nice)..." value="Valbonne">
+            <button onclick="rechercherLieu()">Chercher</button>
         </div>
-        <input type="text" id="search-input" value="Valbonne" style="width: 100%; margin-bottom: 10px;">
-        <button class="btn-action" onclick="lancerAnalyse()">Calculer le bilan sur la période 🚀</button>
+        <div id="map"></div>
+        <div class="spot-info" id="spot-text">
+            Lat/Lon : 43.6412, 7.0084 | Alt : 200m
+        </div>
     </div>
 
+    <!-- 2. Paramètres de Période et Lancement -->
+    <div class="card">
+        <strong>2. Période d'analyse :</strong>
+        <div class="controls" style="margin-top: 8px;">
+            <div><label style="font-size:0.8rem; color:#94a3b8;">Début : </label><input type="date" id="date-start" value="2026-06-01"></div>
+            <div><label style="font-size:0.8rem; color:#94a3b8;">Fin : </label><input type="date" id="date-end" value="2026-08-31"></div>
+        </div>
+        <button class="btn-action" onclick="lancerAnalyse()">Calculer le Bilan Climatique 🚀</button>
+    </div>
+
+    <!-- Sélecteur d'années pour les graphiques -->
     <div class="card" id="selector-card" style="display:none;">
-        <strong>Sélectionner les années à comparer :</strong>
+        <strong>Sélectionner les années à afficher sur les graphiques :</strong>
         <div class="year-selector" id="year-checks"></div>
     </div>
 
+    <!-- Résultats et Graphiques -->
     <div class="card" id="results-card" style="display:none;">
-        <div id="resultats-content"></div>
+        <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Synthèse par Année</h3>
+        <div id="resultats-content" style="overflow-x: auto; margin-bottom: 20px;"></div>
+        
+        <h4 style="color: #38bdf8; margin: 10px 0;">Températures Minimales Quotidiennes (°C)</h4>
         <div class="chart-container"><canvas id="multiMinChart"></canvas></div>
+
+        <h4 style="color: #f87171; margin: 10px 0;">Températures Maximales Quotidiennes (°C)</h4>
         <div class="chart-container"><canvas id="multiMaxChart"></canvas></div>
+
+        <h4 style="color: #fbbf24; margin: 10px 0;">Indice Humidex Max Quotidien</h4>
         <div class="chart-container"><canvas id="multiHumidexChart"></canvas></div>
     </div>
 
 <script>
+let currentLat = 43.6412;
+let currentLon = 7.0084;
+let currentElevation = 200;
+let map, marker;
 let globalDataStore = {};
 let charts = {};
+
+document.addEventListener("DOMContentLoaded", () => {
+    map = L.map('map').setView([currentLat, currentLon], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    marker = L.marker([currentLat, currentLon], {draggable: true}).addTo(map);
+
+    marker.on('dragend', function(event) {
+        let pos = marker.getLatLng();
+        currentLat = pos.lat;
+        currentLon = pos.lng;
+        recupererAltitude();
+    });
+
+    map.on('click', function(event) {
+        marker.setLatLng(event.latlng);
+        currentLat = event.latlng.lat;
+        currentLon = event.latlng.lng;
+        recupererAltitude();
+    });
+});
+
+async function rechercherLieu() {
+    let q = document.getElementById("search-input").value;
+    if (!q) return;
+    try {
+        let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+        let data = await res.json();
+        if (data && data.length > 0) {
+            currentLat = parseFloat(data[0].lat);
+            currentLon = parseFloat(data[0].lon);
+            map.setView([currentLat, currentLon], 13);
+            marker.setLatLng([currentLat, currentLon]);
+            recupererAltitude();
+        } else {
+            alert("Lieu introuvable.");
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function recupererAltitude() {
+    try {
+        let res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${currentLat}&longitude=${currentLon}`);
+        let data = await res.json();
+        if (data.elevation && data.elevation.length > 0) {
+            currentElevation = Math.round(data.elevation[0]);
+        }
+    } catch(e) {}
+    document.getElementById("spot-text").innerText = `Lat/Lon : ${currentLat.toFixed(4)}, ${currentLon.toFixed(4)} | Alt : ${currentElevation}m`;
+}
 
 function calculerHumidex(t, td) {
     let e = 6.11 * Math.exp(5417.7530 * ((1 / 273.16) - (1 / (273.15 + td))));
@@ -57,89 +151,171 @@ function calculerHumidex(t, td) {
 
 async function lancerAnalyse() {
     const annees = [2022, 2023, 2024, 2025, 2026];
-    const dStart = document.getElementById("date-start").value;
-    const dEnd = document.getElementById("date-end").value;
+    const dStart = document.getElementById("date-start").value; // Format AAAA-MM-JJ
+    const dEnd = document.getElementById("date-end").value;     // Format AAAA-MM-JJ
     
-    document.getElementById("resultats-content").innerHTML = "Calcul en cours...";
+    document.getElementById("resultats-content").innerHTML = "Interrogation des archives climatiques en cours...";
     document.getElementById("results-card").style.display = "block";
     document.getElementById("selector-card").style.display = "block";
     
     let checksHtml = "";
     globalDataStore = {};
 
-    for (let annee of annees) {
-        // Ajuster la requête pour la période donnée
-        let start = `${annee}-${dStart.split('-')[1]}-${dStart.split('-')[2]}`;
-        let end = `${annee}-${dEnd.split('-')[1]}-${dEnd.split('-')[2]}`;
-        
-        // Validation basique
-        if (new Date(start) > new Date()) continue;
+    let monthDayStart = dStart.substring(5); // MM-JJ
+    let monthDayEnd = dEnd.substring(5);     // MM-JJ
 
-        let url = `https://archive-api.open-meteo.com/v1/archive?latitude=43.64&longitude=7.0&hourly=temperature_2m,dew_point_2m&start_date=${start}&end_date=${end}&timezone=Europe%2FParis`;
-        let res = await fetch(url);
-        let json = await res.json();
+    let tableauHtml = `<table>
+        <tr>
+            <th>Été</th>
+            <th>H.Max</th>
+            <th>H >35</th>
+            <th>H >40</th>
+            <th>Nuits>20</th>
+            <th>IPE 🎯</th>
+        </tr>`;
+
+    for (let annee of annees) {
+        let start = `${annee}-${monthDayStart}`;
+        let end = `${annee}-${monthDayEnd}`;
         
-        if (json.hourly) {
-            processYear(annee, json);
-            checksHtml += `<label><input type="checkbox" value="${annee}" checked onchange="updateCharts()"> ${annee}</label>`;
+        let today = new Date().toISOString().split('T')[0];
+        if (annee === 2026 && end > today) end = today;
+        if (start > today) continue;
+
+        let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m&start_date=${start}&end_date=${end}&timezone=Europe%2FParis`;
+        
+        try {
+            let res = await fetch(url);
+            let json = await res.json();
+            
+            if (json.hourly) {
+                let stats = processYearData(annee, json);
+                checksHtml += `<label><input type="checkbox" value="${annee}" checked onchange="updateCharts()"> <strong>${annee}</strong></label>`;
+                
+                tableauHtml += `<tr>
+                    <td><strong>${annee}</strong></td>
+                    <td>${stats.maxHumidex}</td>
+                    <td>${stats.countH35}h</td>
+                    <td style="color:${stats.countH40 > 0 ? '#f87171':'inherit'}"><strong>${stats.countH40}h</strong></td>
+                    <td>${stats.countNuitsT20}</td>
+                    <td><strong style="color: #38bdf8;">${stats.ipeScore}</strong></td>
+                </tr>`;
+            }
+        } catch(e) {
+            console.error("Erreur pour l'année", annee, e);
         }
     }
+
+    tableauHtml += `</table>`;
+    document.getElementById("resultats-content").innerHTML = tableauHtml;
     document.getElementById("year-checks").innerHTML = checksHtml;
     updateCharts();
 }
 
-function processYear(annee, json) {
+function processYearData(annee, json) {
     let temps = json.hourly.temperature_2m;
     let dewPoints = json.hourly.dew_point_2m;
     let times = json.hourly.time;
     
     let dailyTMax = [], dailyTMin = [], dailyHMax = [];
     let currentMap = {};
+    let maxHumidex = -999, countH35 = 0, countH40 = 0;
+    let nuitsChaudesMap = {};
 
     for(let i=0; i<temps.length; i++) {
+        let t = temps[i], td = dewPoints[i];
+        if (t === null || td === null) continue;
+
+        let h = calculerHumidex(t, td);
+        if (h > maxHumidex) maxHumidex = h;
+        if (h > 35) countH35++;
+        if (h > 40) countH40++;
+
         let date = times[i].split('T')[0];
+        let hourNum = parseInt(times[i].split('T')[1].split(':')[0], 10);
+
         if(!currentMap[date]) currentMap[date] = {t: [], h: []};
-        currentMap[date].t.push(temps[i]);
-        currentMap[date].h.push(calculerHumidex(temps[i], dewPoints[i]));
+        currentMap[date].t.push(t);
+        currentMap[date].h.push(h);
+
+        if (hourNum >= 22 || hourNum <= 7) {
+            if (!nuitsChaudesMap[date]) nuitsChaudesMap[date] = { tMax: -999 };
+            if (t > nuitsChaudesMap[date].tMax) nuitsChaudesMap[date].tMax = t;
+        }
     }
     
-    Object.keys(currentMap).sort().forEach(d => {
-        dailyTMax.push(Math.max(...currentMap[d]));
-        dailyTMin.push(Math.min(...currentMap[d]));
+    let datesKeys = Object.keys(currentMap).sort();
+    datesKeys.forEach(d => {
+        dailyTMax.push(Math.max(...currentMap[d].t));
+        dailyTMin.push(Math.min(...currentMap[d].t));
         dailyHMax.push(Math.max(...currentMap[d].h));
     });
 
-    globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax };
+    let countNuitsT20 = 0;
+    for (let d in nuitsChaudesMap) {
+        if (nuitsChaudesMap[d].tMax >= 20) countNuitsT20++;
+    }
+
+    let countTd22Hours = 0;
+    for (let i = 0; i < dewPoints.length; i++) {
+        if (dewPoints[i] !== null && dewPoints[i] > 22) countTd22Hours++;
+    }
+
+    let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 2) + (countTd22Hours * 0.2));
+
+    globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax, dates: datesKeys };
+
+    return { maxHumidex, countH35, countH40, countNuitsT20, ipeScore };
 }
 
 function updateCharts() {
     let checked = Array.from(document.querySelectorAll('#year-checks input:checked')).map(i => i.value);
-    
     const couleurs = {2022: '#94a3b8', 2023: '#38bdf8', 2024: '#34d399', 2025: '#fbbf24', 2026: '#f87171'};
 
-    const createConfig = (dataKey, label) => ({
+    // Trouver la plus grande série de dates pour aligner l'axe X
+    let maxLabels = [];
+    checked.forEach(y => {
+        if (globalDataStore[y] && globalDataStore[y].dates.length > maxLabels.length) {
+            maxLabels = globalDataStore[y].dates;
+        }
+    });
+
+    const createConfig = (dataKey, labelText) => ({
         type: 'line',
         data: {
-            labels: Array.from({length: 92}, (_, i) => i+1),
+            labels: maxLabels.map(d => d.substring(5)), // Afficher MM-JJ sur l'axe X
             datasets: checked.map(y => ({
-                label: y,
-                data: globalDataStore[y][dataKey],
+                label: `Été ${y}`,
+                data: globalDataStore[y] ? globalDataStore[y][dataKey] : [],
                 borderColor: couleurs[y],
                 borderWidth: 2,
-                pointRadius: 0
+                pointRadius: 0,
+                tension: 0.2
             }))
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: label, color: '#fff' } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            scales: {
+                x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 12 } },
+                y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+            },
+            plugins: { 
+                title: { display: true, text: labelText, color: '#f8fafc', font: { size: 12 } },
+                legend: { labels: { color: '#f8fafc', font: { size: 11 } } } 
+            } 
+        }
     });
 
     ['multiMinChart', 'multiMaxChart', 'multiHumidexChart'].forEach(id => {
         if(charts[id]) charts[id].destroy();
     });
 
-    charts['multiMinChart'] = new Chart(document.getElementById('multiMinChart'), createConfig('tMin', 'Température Minimale'));
-    charts['multiMaxChart'] = new Chart(document.getElementById('multiMaxChart'), createConfig('tMax', 'Température Maximale'));
-    charts['multiHumidexChart'] = new Chart(document.getElementById('multiHumidexChart'), createConfig('hMax', 'Humidex Maximal'));
+    charts['multiMinChart'] = new Chart(document.getElementById('multiMinChart'), createConfig('tMin', 'Températures Minimales Quotidiennes (°C)'));
+    charts['multiMaxChart'] = new Chart(document.getElementById('multiMaxChart'), createConfig('tMax', 'Températures Maximales Quotidiennes (°C)'));
+    charts['multiHumidexChart'] = new Chart(document.getElementById('multiHumidexChart'), createConfig('hMax', 'Indicateur Humidex Maximal Quotidien'));
 }
 </script>
+
 </body>
 </html>
