@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 950px; margin: auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 1000px; margin: auto; }
         h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 10px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -21,8 +21,8 @@
         #map { height: 180px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.7rem; text-align: center; }
-        th, td { padding: 6px 3px; border-bottom: 1px solid #334155; }
-        th { color: #94a3b8; font-size: 0.65rem; background: #334155; }
+        th, td { padding: 6px 2px; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-size: 0.65rem; background: #334155; line-height: 1.2; }
         
         button.btn-action { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; }
         button.btn-action:hover { background: #0ea5e9; }
@@ -32,6 +32,7 @@
         .back-link:hover { text-decoration: underline; }
         
         .chart-container { position: relative; height: 260px; width: 100%; margin-top: 15px; margin-bottom: 25px; }
+        .legend-ipe { font-size: 0.75rem; color: #94a3b8; margin-top: 8px; line-height: 1.3; background: #0f172a; padding: 8px; border-radius: 6px; }
     </style>
 </head>
 <body>
@@ -67,15 +68,16 @@
 
     <div class="card" id="results-card" style="display:none;">
         <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">📊 Synthèse & Persistance par Année</h3>
-        <div id="resultats-content" style="overflow-x: auto; margin-bottom: 20px;"></div>
+        <div id="resultats-content" style="overflow-x: auto; margin-bottom: 10px;"></div>
+        <div class="legend-ipe" id="legend-content"></div>
         
-        <h4 style="color: #38bdf8; margin: 10px 0;">Températures Minimales Quotidiennes (°C)</h4>
+        <h4 style="color: #38bdf8; margin: 15px 0 5px 0;">Températures Minimales Quotidiennes (°C)</h4>
         <div class="chart-container"><canvas id="multiMinChart"></canvas></div>
 
-        <h4 style="color: #f87171; margin: 10px 0;">Températures Maximales Quotidiennes (°C)</h4>
+        <h4 style="color: #f87171; margin: 15px 0 5px 0;">Températures Maximales Quotidiennes (°C)</h4>
         <div class="chart-container"><canvas id="multiMaxChart"></canvas></div>
 
-        <h4 style="color: #fbbf24; margin: 10px 0;">Indicateur Humidex Max Quotidien</h4>
+        <h4 style="color: #fbbf24; margin: 15px 0 5px 0;">Indicateur Humidex Max Quotidien</h4>
         <div class="chart-container"><canvas id="multiHumidexChart"></canvas></div>
     </div>
 
@@ -164,13 +166,14 @@ async function lancerAnalyse() {
         <tr>
             <th>Été</th>
             <th>H.Max</th>
+            <th>Précip.<br>(mm / j)</th>
             <th>H>35</th>
             <th>H>40</th>
-            <th>Nuits>20</th>
-            <th>Nuits>25</th>
-            <th>Max Nuits Conséc.</th>
-            <th>Max Torrides Conséc.</th>
-            <th>Max Chaleur Conséc.</th>
+            <th>Nuits>20<br>(Tropicales)</th>
+            <th>Nuits>25<br>(Torrides)</th>
+            <th>Max Nuits<br>Conséc.</th>
+            <th>Max Torrides<br>Conséc.</th>
+            <th>Max Chaleur<br>Conséc.</th>
             <th>IPE 🎯</th>
         </tr>`;
 
@@ -182,19 +185,20 @@ async function lancerAnalyse() {
         if (annee === 2026 && end > today) end = today;
         if (start > today) continue;
 
-        let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m&start_date=${start}&end_date=${end}&timezone=Europe%2FParis`;
+        let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m,precipitation&daily=precipitation_sum&start_date=${start}&end_date=${end}&timezone=Europe%2FParis`;
         
         try {
             let res = await fetch(url);
             let json = await res.json();
             
-            if (json.hourly) {
+            if (json.hourly && json.daily) {
                 let stats = processYearData(annee, json);
                 checksHtml += `<label><input type="checkbox" value="${annee}" checked onchange="updateCharts()"> <strong>${annee}</strong></label>`;
                 
                 tableauHtml += `<tr>
                     <td><strong>${annee}</strong></td>
                     <td>${stats.maxHumidex}</td>
+                    <td>${stats.totalPrecip} mm<br><span style="color:#94a3b8; font-size:0.65rem;">(${stats.joursPluie} j)</span></td>
                     <td>${stats.countH35}h</td>
                     <td style="color:${stats.countH40 > 0 ? '#f87171':'inherit'}"><strong>${stats.countH40}h</strong></td>
                     <td>${stats.countNuitsT20}</td>
@@ -212,6 +216,12 @@ async function lancerAnalyse() {
 
     tableauHtml += `</table>`;
     document.getElementById("resultats-content").innerHTML = tableauHtml;
+    
+    // Légende de l'IPE
+    document.getElementById("legend-content").innerHTML = `
+        <strong>💡 Indice de Pénibilité Estivale (IPE) :</strong> Synthèse pondérée combinant le cumul d'heures d'Humidex inconfortables (>35 et >40), la récurrence des nuits tropicales (>20°C) et torrides (>25°C), ainsi que la lourdeur hygrométrique nocturne (points de rosée soutenus). Plus le score est élevé, plus l'été a été éprouvant.
+    `;
+
     document.getElementById("year-checks").innerHTML = checksHtml;
     updateCharts();
 }
@@ -220,7 +230,11 @@ function processYearData(annee, json) {
     let temps = json.hourly.temperature_2m;
     let dewPoints = json.hourly.dew_point_2m;
     let times = json.hourly.time;
+    let dailyPrecipSum = json.daily.precipitation_sum || [];
     
+    let totalPrecip = Math.round(dailyPrecipSum.reduce((a, b) => a + (b || 0), 0) * 10) / 10;
+    let joursPluie = dailyPrecipSum.filter(p => p >= 1.0).length;
+
     let dailyTMax = [], dailyTMin = [], dailyHMax = [];
     let currentMap = {};
     let maxHumidex = -999, countH35 = 0, countH40 = 0;
@@ -309,7 +323,7 @@ function processYearData(annee, json) {
 
     globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax, dates: datesKeys };
 
-    return { maxHumidex, countH35, countH40, countNuitsT20, countNuitsT25, maxNuitsConsecutives, maxTorridesConsecutives, maxChaleurConsecutives, ipeScore };
+    return { maxHumidex, totalPrecip, joursPluie, countH35, countH40, countNuitsT20, countNuitsT25, maxNuitsConsecutives, maxTorridesConsecutives, maxChaleurConsecutives, ipeScore };
 }
 
 function updateCharts() {
@@ -327,14 +341,19 @@ function updateCharts() {
         type: 'line',
         data: {
             labels: maxLabels.map(d => d.substring(5)),
-            datasets: checked.map(y => ({
-                label: `Été ${y}`,
-                data: globalDataStore[y] ? globalDataStore[y][dataKey] : [],
-                borderColor: couleurs[y],
-                borderWidth: 2,
-                pointRadius: 0,
-                tension: 0.2
-            }))
+            datasets: checked.map(y => {
+                let isCurrentYear = (y === '2026');
+                return {
+                    label: `Été ${y}`,
+                    data: globalDataStore[y] ? globalDataStore[y][dataKey] : [],
+                    borderColor: couleurs[y],
+                    // Année en cours plus visible (trait plus épais et opaque)
+                    borderWidth: isCurrentYear ? 3.5 : 1.5,
+                    borderDash: isCurrentYear ? [] : [],
+                    pointRadius: 0,
+                    tension: 0.2
+                };
+            })
         },
         options: { 
             responsive: true, 
