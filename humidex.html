@@ -71,7 +71,7 @@
         <div id="resultats-content" style="overflow-x: auto; margin-bottom: 10px;"></div>
         <div class="legend-ipe" id="legend-content"></div>
         
-        <h4 style="color: #38bdf8; margin: 15px 0 5px 0;">Températures Minimales Quotidiennes (°C)</h4>
+        <h4 style="color: #38bdf8; margin: 15px 0 5px 0;">Températures Minimales Quotidiennes (°C) & Seuils Nocturnes</h4>
         <div class="chart-container"><canvas id="multiMinChart"></canvas></div>
 
         <h4 style="color: #f87171; margin: 15px 0 5px 0;">Températures Maximales Quotidiennes (°C)</h4>
@@ -79,6 +79,9 @@
 
         <h4 style="color: #fbbf24; margin: 15px 0 5px 0;">Indicateur Humidex Max Quotidien</h4>
         <div class="chart-container"><canvas id="multiHumidexChart"></canvas></div>
+
+        <h4 style="color: #a855f7; margin: 15px 0 5px 0;">Pénibilité Nocturne (Humidex Min de la nuit)</h4>
+        <div class="chart-container"><canvas id="multiHumidexMinChart"></canvas></div>
 
         <h4 style="color: #38bdf8; margin: 15px 0 5px 0;">Précipitations Quotidiennes (mm)</h4>
         <div class="chart-container"><canvas id="multiPrecipChart"></canvas></div>
@@ -238,11 +241,12 @@ function processYearData(annee, json) {
     let totalPrecip = Math.round(dailyPrecipSum.reduce((a, b) => a + (b || 0), 0) * 10) / 10;
     let joursPluie = dailyPrecipSum.filter(p => p >= 1.0).length;
 
-    let dailyTMax = [], dailyTMin = [], dailyHMax = [], dailyPrecip = [];
+    let dailyTMax = [], dailyTMin = [], dailyHMax = [], dailyHMinNight = [], dailyPrecip = [];
     let currentMap = {};
     let maxHumidex = -999, countH35 = 0, countH40 = 0;
     let nuitsChaudesMap = {};
     let nuitsTorridesMap = {};
+    let nuitsHumidexMinMap = {};
 
     for(let i=0; i<temps.length; i++) {
         let t = temps[i], td = dewPoints[i];
@@ -260,18 +264,20 @@ function processYearData(annee, json) {
         currentMap[date].t.push(t);
         currentMap[date].h.push(h);
 
+        // Nuit de 22h à 07h
         if (hourNum >= 22 || hourNum <= 7) {
             if (!nuitsChaudesMap[date]) nuitsChaudesMap[date] = { tMax: -999 };
             if (t > nuitsChaudesMap[date].tMax) nuitsChaudesMap[date].tMax = t;
 
             if (!nuitsTorridesMap[date]) nuitsTorridesMap[date] = { tMax: -999 };
             if (t > nuitsTorridesMap[date].tMax) nuitsTorridesMap[date].tMax = t;
+
+            if (!nuitsHumidexMinMap[date]) nuitsHumidexMinMap[date] = [];
+            nuitsHumidexMinMap[date].push(h);
         }
     }
     
     let datesKeys = Object.keys(currentMap).sort();
-    
-    // Map rapide des précipitations journalières
     let precipMap = {};
     for(let j=0; j<dailyDates.length; j++) {
         precipMap[dailyDates[j]] = dailyPrecipSum[j] || 0;
@@ -285,10 +291,15 @@ function processYearData(annee, json) {
         let maxT = Math.max(...currentMap[d].t);
         let minT = Math.min(...currentMap[d].t);
         let maxH = Math.max(...currentMap[d].h);
+        
+        // Humidex minimal de la nuit
+        let nightHArr = nuitsHumidexMinMap[d] || [maxH];
+        let minNightH = Math.min(...nightHArr);
 
         dailyTMax.push(maxT);
         dailyTMin.push(minT);
         dailyHMax.push(maxH);
+        dailyHMinNight.push(minNightH);
         dailyPrecip.push(precipMap[d] || 0);
 
         let nuitChaude = (nuitsChaudesMap[d] && nuitsChaudesMap[d].tMax >= 20);
@@ -331,7 +342,7 @@ function processYearData(annee, json) {
 
     let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 1.5) + (countNuitsT25 * 3) + (countTd22Hours * 0.2));
 
-    globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax, precip: dailyPrecip, dates: datesKeys };
+    globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax, hMinNight: dailyHMinNight, precip: dailyPrecip, dates: datesKeys };
 
     return { maxHumidex, totalPrecip, joursPluie, countH35, countH40, countNuitsT20, countNuitsT25, maxNuitsConsecutives, maxTorridesConsecutives, maxChaleurConsecutives, ipeScore };
 }
@@ -347,44 +358,69 @@ function updateCharts() {
         }
     });
 
-    const createConfig = (dataKey, labelText, isBar = false) => ({
-        type: isBar ? 'bar' : 'line',
-        data: {
-            labels: maxLabels.map(d => d.substring(5)),
-            datasets: checked.map(y => {
-                let isCurrentYear = (y === '2026');
-                return {
-                    label: `Été ${y}`,
-                    data: globalDataStore[y] ? globalDataStore[y][dataKey] : [],
-                    borderColor: couleurs[y],
-                    backgroundColor: isBar ? couleurs[y] + '88' : couleurs[y],
-                    borderWidth: isCurrentYear ? 3.5 : 1.5,
-                    pointRadius: 0,
-                    tension: 0.2
-                };
-            })
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            scales: {
-                x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 12 } },
-                y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
-            },
-            plugins: { 
-                title: { display: true, text: labelText, color: '#f8fafc', font: { size: 12 } },
-                legend: { labels: { color: '#f8fafc', font: { size: 11 } } } 
-            } 
-        }
-    });
+    const createConfig = (dataKey, labelText, isBar = false, includeThresholds = false) => {
+        let datasets = checked.map(y => {
+            let isCurrentYear = (y === '2026');
+            return {
+                label: `Été ${y}`,
+                data: globalDataStore[y] ? globalDataStore[y][dataKey] : [],
+                borderColor: couleurs[y],
+                backgroundColor: isBar ? couleurs[y] + '88' : couleurs[y],
+                borderWidth: isCurrentYear ? 3.5 : 1.5,
+                pointRadius: 0,
+                tension: 0.2
+            };
+        });
 
-    ['multiMinChart', 'multiMaxChart', 'multiHumidexChart', 'multiPrecipChart'].forEach(id => {
+        // Ajout des lignes de seuils pour le graphique des Tmin
+        if (includeThresholds) {
+            datasets.push({
+                label: 'Seuil Tropical (20°C)',
+                data: Array(maxLabels.length).fill(20),
+                borderColor: '#fbbf24',
+                borderWidth: 1.5,
+                borderDash: [4, 4],
+                pointRadius: 0
+            });
+            datasets.push({
+                label: 'Seuil Torride (25°C)',
+                data: Array(maxLabels.length).fill(25),
+                borderColor: '#f87171',
+                borderWidth: 1.5,
+                borderDash: [4, 4],
+                pointRadius: 0
+            });
+        }
+
+        return {
+            type: isBar ? 'bar' : 'line',
+            data: {
+                labels: maxLabels.map(d => d.substring(5)),
+                datasets: datasets
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: {
+                    x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 12 } },
+                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+                },
+                plugins: { 
+                    title: { display: true, text: labelText, color: '#f8fafc', font: { size: 12 } },
+                    legend: { labels: { color: '#f8fafc', font: { size: 11 } } } 
+                } 
+            }
+        };
+    };
+
+    ['multiMinChart', 'multiMaxChart', 'multiHumidexChart', 'multiHumidexMinChart', 'multiPrecipChart'].forEach(id => {
         if(charts[id]) charts[id].destroy();
     });
 
-    charts['multiMinChart'] = new Chart(document.getElementById('multiMinChart'), createConfig('tMin', 'Températures Minimales Quotidiennes (°C)'));
+    charts['multiMinChart'] = new Chart(document.getElementById('multiMinChart'), createConfig('tMin', 'Températures Minimales Quotidiennes (°C)', false, true));
     charts['multiMaxChart'] = new Chart(document.getElementById('multiMaxChart'), createConfig('tMax', 'Températures Maximales Quotidiennes (°C)'));
     charts['multiHumidexChart'] = new Chart(document.getElementById('multiHumidexChart'), createConfig('hMax', 'Indicateur Humidex Maximal Quotidien'));
+    charts['multiHumidexMinChart'] = new Chart(document.getElementById('multiHumidexMinChart'), createConfig('hMinNight', 'Indicateur Humidex Nocturne (Min de la nuit)'));
     charts['multiPrecipChart'] = new Chart(document.getElementById('multiPrecipChart'), createConfig('precip', 'Précipitations Quotidiennes (mm)', true));
 }
 </script>
