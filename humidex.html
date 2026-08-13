@@ -79,6 +79,9 @@
 
         <h4 style="color: #fbbf24; margin: 15px 0 5px 0;">Indicateur Humidex Max Quotidien</h4>
         <div class="chart-container"><canvas id="multiHumidexChart"></canvas></div>
+
+        <h4 style="color: #38bdf8; margin: 15px 0 5px 0;">Précipitations Quotidiennes (mm)</h4>
+        <div class="chart-container"><canvas id="multiPrecipChart"></canvas></div>
     </div>
 
 <script>
@@ -185,7 +188,7 @@ async function lancerAnalyse() {
         if (annee === 2026 && end > today) end = today;
         if (start > today) continue;
 
-        let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m,precipitation&daily=precipitation_sum&start_date=${start}&end_date=${end}&timezone=Europe%2FParis`;
+        let url = `https://archive-api.open-meteo.com/v1/archive?latitude=${currentLat}&longitude=${currentLon}&elevation=${currentElevation}&hourly=temperature_2m,dew_point_2m&daily=precipitation_sum&start_date=${start}&end_date=${end}&timezone=Europe%2FParis`;
         
         try {
             let res = await fetch(url);
@@ -217,7 +220,6 @@ async function lancerAnalyse() {
     tableauHtml += `</table>`;
     document.getElementById("resultats-content").innerHTML = tableauHtml;
     
-    // Légende de l'IPE
     document.getElementById("legend-content").innerHTML = `
         <strong>💡 Indice de Pénibilité Estivale (IPE) :</strong> Synthèse pondérée combinant le cumul d'heures d'Humidex inconfortables (>35 et >40), la récurrence des nuits tropicales (>20°C) et torrides (>25°C), ainsi que la lourdeur hygrométrique nocturne (points de rosée soutenus). Plus le score est élevé, plus l'été a été éprouvant.
     `;
@@ -231,11 +233,12 @@ function processYearData(annee, json) {
     let dewPoints = json.hourly.dew_point_2m;
     let times = json.hourly.time;
     let dailyPrecipSum = json.daily.precipitation_sum || [];
+    let dailyDates = json.daily.time || [];
     
     let totalPrecip = Math.round(dailyPrecipSum.reduce((a, b) => a + (b || 0), 0) * 10) / 10;
     let joursPluie = dailyPrecipSum.filter(p => p >= 1.0).length;
 
-    let dailyTMax = [], dailyTMin = [], dailyHMax = [];
+    let dailyTMax = [], dailyTMin = [], dailyHMax = [], dailyPrecip = [];
     let currentMap = {};
     let maxHumidex = -999, countH35 = 0, countH40 = 0;
     let nuitsChaudesMap = {};
@@ -268,6 +271,12 @@ function processYearData(annee, json) {
     
     let datesKeys = Object.keys(currentMap).sort();
     
+    // Map rapide des précipitations journalières
+    let precipMap = {};
+    for(let j=0; j<dailyDates.length; j++) {
+        precipMap[dailyDates[j]] = dailyPrecipSum[j] || 0;
+    }
+
     let maxNuitsConsecutives = 0, currentNuitsConsec = 0;
     let maxTorridesConsecutives = 0, currentTorridesConsec = 0;
     let maxChaleurConsecutives = 0, currentChaleurConsec = 0;
@@ -280,6 +289,7 @@ function processYearData(annee, json) {
         dailyTMax.push(maxT);
         dailyTMin.push(minT);
         dailyHMax.push(maxH);
+        dailyPrecip.push(precipMap[d] || 0);
 
         let nuitChaude = (nuitsChaudesMap[d] && nuitsChaudesMap[d].tMax >= 20);
         if (nuitChaude) {
@@ -321,7 +331,7 @@ function processYearData(annee, json) {
 
     let ipeScore = Math.round((countH35 * 1) + (countH40 * 3) + (countNuitsT20 * 1.5) + (countNuitsT25 * 3) + (countTd22Hours * 0.2));
 
-    globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax, dates: datesKeys };
+    globalDataStore[annee] = { tMax: dailyTMax, tMin: dailyTMin, hMax: dailyHMax, precip: dailyPrecip, dates: datesKeys };
 
     return { maxHumidex, totalPrecip, joursPluie, countH35, countH40, countNuitsT20, countNuitsT25, maxNuitsConsecutives, maxTorridesConsecutives, maxChaleurConsecutives, ipeScore };
 }
@@ -337,8 +347,8 @@ function updateCharts() {
         }
     });
 
-    const createConfig = (dataKey, labelText) => ({
-        type: 'line',
+    const createConfig = (dataKey, labelText, isBar = false) => ({
+        type: isBar ? 'bar' : 'line',
         data: {
             labels: maxLabels.map(d => d.substring(5)),
             datasets: checked.map(y => {
@@ -347,9 +357,8 @@ function updateCharts() {
                     label: `Été ${y}`,
                     data: globalDataStore[y] ? globalDataStore[y][dataKey] : [],
                     borderColor: couleurs[y],
-                    // Année en cours plus visible (trait plus épais et opaque)
+                    backgroundColor: isBar ? couleurs[y] + '88' : couleurs[y],
                     borderWidth: isCurrentYear ? 3.5 : 1.5,
-                    borderDash: isCurrentYear ? [] : [],
                     pointRadius: 0,
                     tension: 0.2
                 };
@@ -369,13 +378,14 @@ function updateCharts() {
         }
     });
 
-    ['multiMinChart', 'multiMaxChart', 'multiHumidexChart'].forEach(id => {
+    ['multiMinChart', 'multiMaxChart', 'multiHumidexChart', 'multiPrecipChart'].forEach(id => {
         if(charts[id]) charts[id].destroy();
     });
 
     charts['multiMinChart'] = new Chart(document.getElementById('multiMinChart'), createConfig('tMin', 'Températures Minimales Quotidiennes (°C)'));
     charts['multiMaxChart'] = new Chart(document.getElementById('multiMaxChart'), createConfig('tMax', 'Températures Maximales Quotidiennes (°C)'));
     charts['multiHumidexChart'] = new Chart(document.getElementById('multiHumidexChart'), createConfig('hMax', 'Indicateur Humidex Maximal Quotidien'));
+    charts['multiPrecipChart'] = new Chart(document.getElementById('multiPrecipChart'), createConfig('precip', 'Précipitations Quotidiennes (mm)', true));
 }
 </script>
 
