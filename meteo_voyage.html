@@ -3,39 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Météo de Voyage - Slovénie & Croatie Août 2026</title>
+    <title>Météo & Détail Horaire - Slovénie & Croatie</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 900px; margin: auto; }
         h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 5px; }
         .subtitle { text-align: center; font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-left: 5px solid #38bdf8; }
-        .card.loading { border-left-color: #fbbf24; }
-        .card.error { border-left-color: #f87171; }
         .header-line { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 8px; }
         .date { font-weight: bold; color: #38bdf8; font-size: 1.05rem; }
         .location { font-weight: bold; color: #f8fafc; font-size: 1rem; background: #334155; padding: 2px 8px; border-radius: 6px; }
-        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; font-size: 0.85rem; margin-top: 8px; background: #0f172a; padding: 10px; border-radius: 8px; }
+        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 0.85rem; margin-top: 8px; background: #0f172a; padding: 10px; border-radius: 8px; }
         .route-info { font-size: 0.8rem; color: #94a3b8; margin-top: 6px; font-style: italic; }
+        
         button.btn-refresh { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 20px; }
         button.btn-refresh:hover { background: #0ea5e9; }
+
+        .btn-toggle { background: #334155; color: #38bdf8; border: 1px solid #475569; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 10px; font-weight: bold; }
+        .btn-toggle:hover { background: #475569; color: #fff; }
+
+        .hourly-container { margin-top: 10px; display: none; overflow-x: auto; background: #0f172a; padding: 8px; border-radius: 8px; }
+        table.hourly-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; white-space: nowrap; }
+        table.hourly-table th, table.hourly-table td { padding: 5px; border-bottom: 1px solid #334155; }
+        table.hourly-table th { color: #94a3b8; background: #1e293b; }
+
         .footer { text-align: center; font-size: 0.75rem; color: #64748b; margin-top: 30px; }
     </style>
 </head>
 <body>
 
-    <h1>🚗 Météo en Direct - Road Trip Slovénie & Croatie</h1>
-    <div class="subtitle">Suivi météorologique automatisé jour par jour (Août 2026)</div>
+    <h1>🚗 Météo & Détail Horaire - Road Trip Slovénie & Croatie</h1>
+    <div class="subtitle">Suivi météorologique automatisé (Août 2026)</div>
 
-    <button class="btn-refresh" onclick="chargerMeteo()">Actualiser les prévisions météo 🔄</button>
+    <button class="btn-refresh" onclick="chargerMeteo()">Actualiser les prévisions 🔄</button>
 
     <div id="timeline"></div>
 
     <div class="footer">
-        Données météo fournies par Open-Meteo.com | Itinéraire extrait de la feuille de route officielle.
+        Données météo fournies par Open-Meteo.com
     </div>
 
 <script>
-// Liste des étapes extraites de votre feuille de route avec coordonnées GPS approximatives
 const etapes = [
     { date: "2026-08-16", lieu: "Vérone (Italie)", lat: 45.4384, lon: 10.9916, route: "Biot ➔ Vérone (Étape de liaison)" },
     { date: "2026-08-17", lieu: "Kobarid (Slovénie)", lat: 46.2486, lon: 13.5814, route: "Vérone ➔ Kobarid (Vallée de la Soča)" },
@@ -54,39 +61,60 @@ const etapes = [
     { date: "2026-08-30", lieu: "Biot (Retour)", lat: 43.6412, lon: 7.0084, route: "Duino ➔ Biot (Fin du road trip)" }
 ];
 
+function calculerHumidex(t, td) {
+    if (t === null || td === null) return "--";
+    let e = 6.11 * Math.exp(5417.7530 * ((1 / 273.16) - (1 / (273.15 + td))));
+    return Math.round((t + (5/9) * (e - 10)) * 10) / 10;
+}
+
 async function chargerMeteo() {
     const container = document.getElementById("timeline");
-    container.innerHTML = "<div style='text-align:center; color:#38bdf8;'>Interrogation des prévisions météo en cours...</div>";
+    container.innerHTML = "<div style='text-align:center; color:#38bdf8;'>Interrogation des prévisions et détails horaires en cours...</div>";
 
     let html = "";
-    const todayStr = new Date().toISOString().split('T')[0];
 
     for (let i = 0; i < etapes.length; i++) {
         let etape = etapes[i];
-        let cardId = `etape-${i}`;
-        
-        // Vérifier si la date est dans le futur ou passé récent par rapport aux prévisions open-meteo (qui gèrent 16 jours max en prévision)
-        let isPast = etape.date < todayStr;
-        
-        // Construction de l'URL Open-Meteo (prévision ou archive selon la date)
-        let url = `https://api.open-meteo.com/v1/forecast?latitude=${etape.lat}&longitude=${etape.lon}&daily=temperature_2m_max,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,windspeed_10m_max,sunshine_duration&timezone=Europe%2FBerlin&start_date=${etape.date}&end_date=${etape.date}`;
+        let url = `https://api.open-meteo.com/v1/forecast?latitude=${etape.lat}&longitude=${etape.lon}&hourly=temperature_2m,dew_point_2m,precipitation,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,windspeed_10m_max,sunshine_duration&timezone=Europe%2FBerlin&start_date=${etape.date}&end_date=${etape.date}`;
 
-        let meteoData = { tMax: "--", tMin: "--", precip: "--", proba: "--", vent: "--", soleil: "--" };
+        let summary = { tMax: "--", tMin: "--", precip: "--", proba: "--", vent: "--", soleil: "--" };
+        let hourlyRows = "";
 
         try {
             let res = await fetch(url);
             let json = await res.json();
+            
             if (json.daily && json.daily.temperature_2m_max) {
-                meteoData.tMax = json.daily.temperature_2m_max[0] ?? "--";
-                meteoData.tMin = json.daily.temperature_2m_min[0] ?? "--";
-                meteoData.precip = json.daily.precipitation_sum[0] ?? 0;
-                meteoData.proba = json.daily.precipitation_probability_max ? json.daily.precipitation_probability_max[0] + "%" : "N/C";
-                meteoData.vent = json.daily.windspeed_10m_max ? Math.round(json.daily.windspeed_10m_max[0]) + " km/h" : "N/C";
+                summary.tMax = json.daily.temperature_2m_max[0] ?? "--";
+                summary.tMin = json.daily.temperature_2m_min[0] ?? "--";
+                summary.precip = json.daily.precipitation_sum[0] ?? 0;
+                summary.proba = json.daily.precipitation_probability_max ? json.daily.precipitation_probability_max[0] + "%" : "N/C";
+                summary.vent = json.daily.windspeed_10m_max ? Math.round(json.daily.windspeed_10m_max[0]) + " km/h" : "N/C";
                 let sunshineSec = json.daily.sunshine_duration ? json.daily.sunshine_duration[0] : 0;
-                meteoData.soleil = Math.round(sunshineSec / 3600 * 10) / 10 + " h";
+                summary.soleil = Math.round(sunshineSec / 3600 * 10) / 10 + " h";
+            }
+
+            if (json.hourly && json.hourly.time) {
+                for (let h = 0; h < json.hourly.time.length; h++) {
+                    let timePart = json.hourly.time[h].split('T')[1];
+                    let t = json.hourly.temperature_2m[h];
+                    let td = json.hourly.dew_point_2m[h];
+                    let prec = json.hourly.precipitation[h];
+                    let wind = json.hourly.windspeed_10m[h];
+                    let hum = calculerHumidex(t, td);
+
+                    hourlyRows += `<tr>
+                        <td>${timePart}</td>
+                        <td>${t !== null ? t + '°C' : '--'}</td>
+                        <td>${td !== null ? td + '°C' : '--'}</td>
+                        <td><strong>${hum}</strong></td>
+                        <td>${prec} mm</td>
+                        <td>${wind} km/h</td>
+                    </tr>`;
+                }
             }
         } catch(e) {
-            console.error("Erreur météo pour", etape.date, e);
+            console.error("Erreur", e);
         }
 
         html += `
@@ -97,11 +125,25 @@ async function chargerMeteo() {
                 </div>
                 <div class="route-info">${etape.route}</div>
                 <div class="details-grid">
-                    <div>🌡️ <strong>Max:</strong> ${meteoData.tMax} °C</div>
-                    <div>❄️ <strong>Min:</strong> ${meteoData.tMin} °C</div>
-                    <div>🌧️ <strong>Pluie:</strong> ${meteoData.precip} mm (${meteoData.proba})</div>
-                    <div>💨 <strong>Vent max:</strong> ${meteoData.vent}</div>
-                    <div>☀️ <strong>Soleil:</strong> ${meteoData.soleil}</div>
+                    <div>🌡️ <strong>Max:</strong> ${summary.tMax} °C</div>
+                    <div>❄️ <strong>Min:</strong> ${summary.tMin} °C</div>
+                    <div>🌧️ <strong>Pluie:</strong> ${summary.precip} mm (${summary.proba})</div>
+                    <div>💨 <strong>Vent max:</strong> ${summary.vent}</div>
+                    <div>☀️ <strong>Soleil:</strong> ${summary.soleil}</div>
+                </div>
+                <button class="btn-toggle" onclick="toggleHourly('hourly-${i}')">Afficher / Masquer le détail horaire ⏱️</button>
+                <div id="hourly-${i}" class="hourly-container">
+                    <table class="hourly-table">
+                        <tr>
+                            <th>Heure</th>
+                            <th>Température</th>
+                            <th>Point de Rosée</th>
+                            <th>Humidex</th>
+                            <th>Précipitations</th>
+                            <th>Vent</th>
+                        </tr>
+                        ${hourlyRows}
+                    </table>
                 </div>
             </div>
         `;
@@ -110,7 +152,15 @@ async function chargerMeteo() {
     container.innerHTML = html;
 }
 
-// Charger automatiquement au démarrage
+function toggleHourly(id) {
+    let el = document.getElementById(id);
+    if (el.style.display === "block") {
+        el.style.display = "none";
+    } else {
+        el.style.display = "block";
+    }
+}
+
 document.addEventListener("DOMContentLoaded", chargerMeteo);
 </script>
 
