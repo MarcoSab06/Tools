@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Météo & Détail Horaire - Slovénie & Croatie</title>
+    <title>Météo, Orages & Pictogrammes - Road Trip Slovénie & Croatie</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 900px; margin: auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; max-width: 950px; margin: auto; }
         h1 { font-size: 1.4rem; text-align: center; color: #38bdf8; margin-bottom: 5px; }
         .subtitle { text-align: center; font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; }
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-left: 5px solid #38bdf8; }
         .header-line { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 8px; }
         .date { font-weight: bold; color: #38bdf8; font-size: 1.05rem; }
         .location { font-weight: bold; color: #f8fafc; font-size: 1rem; background: #334155; padding: 2px 8px; border-radius: 6px; }
-        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 0.85rem; margin-top: 8px; background: #0f172a; padding: 10px; border-radius: 8px; }
+        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; font-size: 0.85rem; margin-top: 8px; background: #0f172a; padding: 10px; border-radius: 8px; }
         .route-info { font-size: 0.8rem; color: #94a3b8; margin-top: 6px; font-style: italic; }
         
         button.btn-refresh { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 20px; }
@@ -26,14 +26,186 @@
         table.hourly-table th, table.hourly-table td { padding: 5px; border-bottom: 1px solid #334155; }
         table.hourly-table th { color: #94a3b8; background: #1e293b; }
 
+        .badge-orage-fort { color: #f87171; font-weight: bold; }
+        .badge-orage-mod { color: #fbbf24; font-weight: bold; }
+        .badge-vert { color: #4ade80; }
+
         .footer { text-align: center; font-size: 0.75rem; color: #64748b; margin-top: 30px; }
     </style>
 </head>
 <body>
 
-    <h1>🚗 Météo & Détail Horaire - Road Trip Slovénie & Croatie</h1>
-    <div class="subtitle">Suivi météorologique automatisé (Août 2026)</div>
+    <h1>🚗 Météo, Orages & Pictogrammes - Road Trip Slovénie & Croatie</h1>
+    <div class="subtitle">Suivi météorologique automatisé avec pictogrammes et risque d'orage (Août 2026)</div>
 
+    <button class="btn-refresh" onclick="chargerMeteo()">Actualiser les prévisions 🔄</button>
+
+    <div id="timeline"></div>
+
+    <div class="footer">
+        Données météo fournies par Open-Meteo.com
+    </div>
+
+<script>
+const etapes = [
+    { date: "2026-08-16", lieu: "Vérone (Italie)", lat: 45.4384, lon: 10.9916, route: "Biot ➔ Vérone (Étape de liaison)" },
+    { date: "2026-08-17", lieu: "Kobarid (Slovénie)", lat: 46.2486, lon: 13.5814, route: "Vérone ➔ Kobarid (Vallée de la Soča)" },
+    { date: "2026-08-18", lieu: "Lac de Bohinj", lat: 46.2764, lon: 13.8864, route: "Kobarid ➔ Lac de Bohinj (Baignade / Paddle)" },
+    { date: "2026-08-19", lieu: "Lac de Bohinj", lat: 46.2764, lon: 13.8864, route: "Journée autour de Bohinj / Bled / Ljubljana" },
+    { date: "2026-08-20", lieu: "Lacs de Plitvice (Croatie)", lat: 44.8808, lon: 15.6160, route: "Bohinj ➔ Plitvice (Randonnée passerelles)" },
+    { date: "2026-08-21", lieu: "Parc de Krka / Split", lat: 43.8047, lon: 15.9614, route: "Plitvice ➔ Krka ➔ Embarquement Ferry Split pour Hvar" },
+    { date: "2026-08-22", lieu: "Île de Hvar", lat: 43.1729, lon: 16.4411, route: "Séjour Hvar - Plage & Détente" },
+    { date: "2026-08-23", lieu: "Île de Hvar (Sveta Nedjelja)", lat: 43.1492, lon: 16.6631, route: "Séjour Hvar - Escalade Cliffbase & Exploration" },
+    { date: "2026-08-24", lieu: "Île de Hvar (Hvar Town)", lat: 43.1729, lon: 16.4411, route: "Séjour Hvar - Autonomie ados / Hula Hula" },
+    { date: "2026-08-25", lieu: "Île de Hvar", lat: 43.1729, lon: 16.4411, route: "Séjour Hvar - Farniente / Criques" },
+    { date: "2026-08-26", lieu: "Île de Hvar", lat: 43.1729, lon: 16.4411, route: "Séjour Hvar - Activités nautiques" },
+    { date: "2026-08-27", lieu: "Île de Hvar", lat: 43.1729, lon: 16.4411, route: "Séjour Hvar - Dernière journée sur l'île" },
+    { date: "2026-08-28", lieu: "Dubrovnik", lat: 42.6507, lon: 18.0944, route: "Hvar ➔ Dubrovnik (Descente de la côte dalmate)" },
+    { date: "2026-08-29", lieu: "Duino (Italie / Nord Adriatique)", lat: 45.7728, lon: 13.6342, route: "Dubrovnik ➔ Duino (Remontée de liaison)" },
+    { date: "2026-08-30", lieu: "Biot (Retour)", lat: 43.6412, lon: 7.0084, route: "Duino ➔ Biot (Fin du road trip)" }
+];
+
+function calculerHumidex(t, td) {
+    if (t === null || td === null) return "--";
+    let e = 6.11 * Math.exp(5417.7530 * ((1 / 273.16) - (1 / (273.15 + td))));
+    return Math.round((t + (5/9) * (e - 10)) * 10) / 10;
+}
+
+function get 시(wcode) { return ''; }
+
+// Conversion code WMO en pictogramme emoji
+function getMeteoEmoji(wcode) {
+    if (wcode === 0) return '☀️';
+    if ([1, 2].includes(wcode)) return '🌤️';
+    if (wcode === 3) return '☁️';
+    if ([45, 48].includes(wcode)) return '🌫️';
+    if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(wcode)) return '🌧️';
+    if ([71, 73, 75, 77, 85, 86].includes(wcode)) return '❄️';
+    if ([95, 96, 99].includes(wcode)) return '⚡';
+    return '🌡️';
+}
+
+function evaluerRisqueOrage(cape, weathercode) {
+    if ([95, 96, 99].includes(weathercode) || cape >= 1000) {
+        return '<span class="badge-orage-fort">⚡ Élevé</span>';
+    } else if (cape >= 300) {
+        return '<span class="badge-orage-mod">⚠️ Modéré</span>';
+    }
+    return '<span class="badge-vert">Faible</span>';
+}
+
+async function chargerMeteo() {
+    const container = document.getElementById("timeline");
+    container.innerHTML = "<div style='text-align:center; color:#38bdf8;'>Interrogation des prévisions, du vent et du risque d'orage en cours...</div>";
+
+    let html = "";
+
+    for (let i = 0; i < etapes.length; i++) {
+        let etape = etapes[i];
+        let url = `https://api.open-meteo.com/v1/forecast?latitude=${etape.lat}&longitude=${etape.lon}&hourly=temperature_2m,dew_point_2m,precipitation,windspeed_10m,cape,weathercode&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,windgusts_10m_max,uv_index_max,sunshine_duration&timezone=Europe%2FBerlin&start_date=${etape.date}&end_date=${etape.date}`;
+
+        let summary = { tMax: "--", tMin: "--", precip: "--", proba: "--", rafales: "--", uv: "--", soleil: "--", orageMax: "Faible" };
+        let hourlyRows = "";
+
+        try {
+            let res = await fetch(url);
+            let json = await res.json();
+            
+            if (json.daily && json.daily.temperature_2m_max) {
+                summary.tMax = json.daily.temperature_2m_max[0] ?? "--";
+                summary.tMin = json.daily.temperature_2m_min[0] ?? "--";
+                summary.precip = json.daily.precipitation_sum[0] ?? 0;
+                summary.proba = json.daily.precipitation_probability_max ? json.daily.precipitation_probability_max[0] + "%" : "N/C";
+                summary.rafales = json.daily.windgusts_10m_max ? Math.round(json.daily.windgusts_10m_max[0]) + " km/h" : "N/C";
+                summary.uv = json.daily.uv_index_max ? json.daily.uv_index_max[0] : "N/C";
+                let sunshineSec = json.daily.sunshine_duration ? json.daily.sunshine_duration[0] : 0;
+                summary.soleil = Math.round(sunshineSec / 3600 * 10) / 10 + " h";
+            }
+
+            if (json.hourly && json.hourly.time) {
+                let maxCapeDay = 0;
+                for (let h = 0; h < json.hourly.time.length; h++) {
+                    let timePart = json.hourly.time[h].split('T')[1];
+                    let t = json.hourly.temperature_2m[h];
+                    let td = json.hourly.dew_point_2m[h];
+                    let prec = json.hourly.precipitation[h];
+                    let wind = json.hourly.windspeed_10m[h];
+                    let cape = json.hourly.cape ? json.hourly.cape[h] : 0;
+                    let wcode = json.hourly.weathercode ? json.hourly.weathercode[h] : 0;
+                    let hum = calculerHumidex(t, td);
+
+                    if (cape > maxCapeDay) maxCapeDay = cape;
+                    let txtOrage = evaluerRisqueOrage(cape, wcode);
+                    let emojiMeteo = getMeteoEmoji(wcode);
+
+                    hourlyRows += `<tr>
+                        <td>${timePart}</td>
+                        <td style="font-size:1rem;">${emojiMeteo}</td>
+                        <td>${t !== null ? t + '°C' : '--'}</td>
+                        <td><strong>${hum}</strong></td>
+                        <td>${prec} mm</td>
+                        <td>${wind} km/h</td>
+                        <td>${txtOrage}</td>
+                    </tr>`;
+                }
+                if (maxCapeDay >= 1000) summary.orageMax = '<span class="badge-orage-fort">⚡ Risque Orageux</span>';
+                else if (maxCapeDay >= 300) summary.orageMax = '<span class="badge-orage-mod">⚠️ Instabilité</span>';
+                else summary.orageMax = '<span class="badge-vert">Calme</span>';
+            }
+        } catch(e) {
+            console.error("Erreur", e);
+        }
+
+        html += `
+            <div class="card">
+                <div class="header-line">
+                    <span class="date">📅 ${etape.date}</span>
+                    <span class="location">📍 ${etape.lieu}</span>
+                </div>
+                <div class="route-info">${etape.route}</div>
+                <div class="details-grid">
+                    <div>🌡️ <strong>Max/Min:</strong> ${summary.tMax}° / ${summary.tMin}°C</div>
+                    <div>🌧️ <strong>Pluie:</strong> ${summary.precip} mm (${summary.proba})</div>
+                    <div>💨 <strong>Rafales:</strong> ${summary.rafales}</div>
+                    <div>⚡ <strong>Orages:</strong> ${summary.orageMax}</div>
+                    <div>☀️ <strong>UV / Soleil:</strong> ${summary.uv} / ${summary.soleil}</div>
+                </div>
+                <button class="btn-toggle" onclick="toggleHourly('hourly-${i}')">Afficher / Masquer le détail horaire & Orages ⏱️</button>
+                <div id="hourly-${i}" class="hourly-container">
+                    <table class="hourly-table">
+                        <tr>
+                            <th>Heure</th>
+                            <th>Ciel</th>
+                            <th>Température</th>
+                            <th>Humidex</th>
+                            <th>Précipitations</th>
+                            <th>Vent</th>
+                            <th>Risque Orage</th>
+                        </tr>
+                        ${hourlyRows}
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function toggleHourly(id) {
+    let el = document.getElementById(id);
+    if (el.style.display === "block") {
+        el.style.display = "none";
+    } else {
+        el.style.display = "block";
+    }
+}
+
+document.addEventListener("DOMContentLoaded", chargerMeteo);
+</script>
+
+</body>
+</html>
     <button class="btn-refresh" onclick="chargerMeteo()">Actualiser les prévisions 🔄</button>
 
     <div id="timeline"></div>
